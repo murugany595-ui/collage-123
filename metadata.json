@@ -1,0 +1,6 @@
+{
+  "name": "Our College",
+  "description": "Comprehensive College Management System (Our College ERP) featuring Role-Based Portals for Administrators, Students, Parents, and Accountants with semester fee billing, invoice generation, attendance, timetables, and reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

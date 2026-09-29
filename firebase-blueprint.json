@@ -1,0 +1,330 @@
+{
+  "entities": {
+    "Admin": {
+      "title": "Admin",
+      "description": "Administrator account with full institutional authority",
+      "type": "object",
+      "properties": {
+        "adminId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 120 },
+        "email": { "type": "string", "maxLength": 120 },
+        "role": { "type": "string", "enum": ["admin"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["adminId", "name", "email", "role"]
+    },
+    "Accountancy": {
+      "title": "Accountancy",
+      "description": "Bursar and finance accountancy officer profile controlled by Admin",
+      "type": "object",
+      "properties": {
+        "accountancyId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 120 },
+        "email": { "type": "string", "maxLength": 120 },
+        "role": { "type": "string", "enum": ["accountant"] },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["accountancyId", "name", "email", "role"]
+    },
+    "Department": {
+      "title": "Department",
+      "description": "Academic engineering and science departments",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "name": { "type": "string", "maxLength": 128 },
+        "code": { "type": "string", "maxLength": 32 },
+        "hodName": { "type": "string", "maxLength": 120 },
+        "hodEmail": { "type": "string", "maxLength": 120 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "code"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Department-isolated student record with unique register number",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "registerNumber": { "type": "string", "maxLength": 64 },
+        "name": { "type": "string", "maxLength": 120 },
+        "dateOfBirth": { "type": "string", "maxLength": 32 },
+        "department": { "type": "string", "maxLength": 64 },
+        "year": { "type": "string", "maxLength": 32 },
+        "section": { "type": "string", "maxLength": 16 },
+        "parentId": { "type": "string", "maxLength": 128 },
+        "parentName": { "type": "string", "maxLength": 120 },
+        "parentEmail": { "type": "string", "maxLength": 120 },
+        "parentPhone": { "type": "string", "maxLength": 32 },
+        "email": { "type": "string", "maxLength": 120 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "address": { "type": "string", "maxLength": 256 },
+        "grade": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["active", "inactive", "graduated", "suspended"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["registerNumber", "name", "department", "year", "dateOfBirth"]
+    },
+    "Parent": {
+      "title": "Parent",
+      "description": "Parent or guardian linked strictly to designated student ID",
+      "type": "object",
+      "properties": {
+        "parentId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 120 },
+        "email": { "type": "string", "maxLength": 120 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "linkedStudentId": { "type": "string", "maxLength": 128 },
+        "studentRegisterNumber": { "type": "string", "maxLength": 64 },
+        "studentName": { "type": "string", "maxLength": 120 },
+        "department": { "type": "string", "maxLength": 64 },
+        "role": { "type": "string", "enum": ["parent"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["parentId", "name", "email", "linkedStudentId", "studentRegisterNumber", "role"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Dedicated individual institutional expense document",
+      "type": "object",
+      "properties": {
+        "expenseId": { "type": "string", "maxLength": 128 },
+        "id": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "maxLength": 64 },
+        "amount": { "type": "number" },
+        "description": { "type": "string", "maxLength": 512 },
+        "month": { "type": "string", "maxLength": 16 },
+        "year": { "type": "number" },
+        "date": { "type": "string", "maxLength": 32 },
+        "payment_method": { "type": "string", "maxLength": 32 },
+        "paid_to": { "type": "string", "maxLength": 128 },
+        "payment_status": { "type": "string", "enum": ["Paid", "Pending", "Cancelled"] },
+        "reference_no": { "type": "string", "maxLength": 64 },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["category", "amount", "date", "month", "year"]
+    },
+    "FeeSettings": {
+      "title": "FeeSettings",
+      "description": "Global tuition and institutional fee rate structures configurable only by Admin",
+      "type": "object",
+      "properties": {
+        "settingId": { "type": "string", "maxLength": 128 },
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "code": { "type": "string", "maxLength": 32 },
+        "tuitionFee": { "type": "number" },
+        "examFee": { "type": "number" },
+        "amount": { "type": "number" },
+        "frequency": { "type": "string", "maxLength": 32 },
+        "description": { "type": "string", "maxLength": 256 },
+        "updatedBy": { "type": "string", "maxLength": 120 },
+        "updatedAt": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "amount"]
+    },
+    "FeePayment": {
+      "title": "FeePayment",
+      "description": "Individual student fee collection transaction record",
+      "type": "object",
+      "properties": {
+        "paymentId": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "registerNumber": { "type": "string", "maxLength": 64 },
+        "studentName": { "type": "string", "maxLength": 120 },
+        "department": { "type": "string", "maxLength": 64 },
+        "feeType": { "type": "string", "maxLength": 64 },
+        "amount": { "type": "number" },
+        "paymentDate": { "type": "string", "maxLength": 32 },
+        "academicYear": { "type": "string", "maxLength": 32 },
+        "paymentStatus": { "type": "string", "enum": ["Paid", "Pending", "Partial", "Overdue"] },
+        "paymentMethod": { "type": "string", "maxLength": 32 },
+        "referenceNo": { "type": "string", "maxLength": 64 },
+        "recordedBy": { "type": "string", "maxLength": 120 },
+        "receiptNo": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["studentId", "registerNumber", "department", "feeType", "amount", "paymentStatus"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Discrete student attendance log entry",
+      "type": "object",
+      "properties": {
+        "attendanceId": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "registerNumber": { "type": "string", "maxLength": 64 },
+        "studentName": { "type": "string", "maxLength": 120 },
+        "department": { "type": "string", "maxLength": 64 },
+        "year": { "type": "string", "maxLength": 32 },
+        "section": { "type": "string", "maxLength": 16 },
+        "date": { "type": "string", "maxLength": 32 },
+        "subject": { "type": "string", "maxLength": 120 },
+        "status": { "type": "string", "enum": ["Present", "Absent", "Late", "Leave"] },
+        "recordedBy": { "type": "string", "maxLength": 120 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["studentId", "department", "date", "status"]
+    },
+    "ExamFeePayment": {
+      "title": "ExamFeePayment",
+      "description": "Discrete examination registration and fee payment record",
+      "type": "object",
+      "properties": {
+        "paymentId": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "registerNumber": { "type": "string", "maxLength": 64 },
+        "studentName": { "type": "string", "maxLength": 120 },
+        "department": { "type": "string", "maxLength": 64 },
+        "examName": { "type": "string", "maxLength": 128 },
+        "semester": { "type": "string", "maxLength": 32 },
+        "academicYear": { "type": "string", "maxLength": 32 },
+        "amount": { "type": "number" },
+        "paymentDate": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["Paid", "Pending", "Overdue"] },
+        "recordedBy": { "type": "string", "maxLength": 120 },
+        "referenceNo": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["studentId", "registerNumber", "department", "amount", "status"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable security and audit trail for sensitive administrative operations",
+      "type": "object",
+      "properties": {
+        "logId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userEmail": { "type": "string", "maxLength": 120 },
+        "role": { "type": "string", "maxLength": 32 },
+        "action": { "type": "string", "maxLength": 128 },
+        "affectedDocumentId": { "type": "string", "maxLength": 128 },
+        "collectionName": { "type": "string", "maxLength": 64 },
+        "details": { "type": "string", "maxLength": 1024 },
+        "previousValue": { "type": "string", "maxLength": 1024 },
+        "newValue": { "type": "string", "maxLength": 1024 },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["userId", "role", "timestamp", "action", "affectedDocumentId"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Student notification or broadcast announcement stored in Firebase",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "notificationId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 180 },
+        "message": { "type": "string", "maxLength": 1024 },
+        "category": { "type": "string", "maxLength": 64 },
+        "targetType": { "type": "string", "enum": ["all", "student", "department"] },
+        "targetStudentId": { "type": "string", "maxLength": 128 },
+        "targetRegisterNumber": { "type": "string", "maxLength": 64 },
+        "targetDepartment": { "type": "string", "maxLength": 64 },
+        "date": { "type": "string", "maxLength": 32 },
+        "createdAt": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdBy": { "type": "string", "maxLength": 120 }
+      },
+      "required": ["title", "message", "createdAt"]
+    },
+    "ChatConversation": {
+      "title": "ChatConversation",
+      "description": "User conversation thread mapped by user UID",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "userEmail": { "type": "string", "maxLength": 120 },
+        "userName": { "type": "string", "maxLength": 120 },
+        "role": { "type": "string", "maxLength": 32 },
+        "department": { "type": "string", "maxLength": 64 },
+        "lastMessage": { "type": "string", "maxLength": 1024 },
+        "lastSender": { "type": "string", "enum": ["user", "bot"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "createdAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Individual message in user chat conversation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "sender": { "type": "string", "enum": ["user", "bot"] },
+        "text": { "type": "string", "maxLength": 4096 },
+        "timestamp": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "sender", "text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Administrative authority and security credential mapping"
+    },
+    "/accountancy/{accountancyId}": {
+      "schema": "Accountancy",
+      "description": "Bursar and accounting staff accounts created by Admin"
+    },
+    "/departments/{departmentId}": {
+      "schema": "Department",
+      "description": "Academic departments: AI&DS, CSE, ECE, MECH, etc."
+    },
+    "/departments/{departmentId}/students/{studentId}": {
+      "schema": "Student",
+      "description": "Department-isolated student records with unique register numbers"
+    },
+    "/parents/{parentId}": {
+      "schema": "Parent",
+      "description": "Parent documents mapped directly to their linked student ID"
+    },
+    "/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Discrete institutional expense records for audit and forecasting"
+    },
+    "/feeSettings/{settingId}": {
+      "schema": "FeeSettings",
+      "description": "Fee rates and structure exclusively modifiable by Admin"
+    },
+    "/feePayments/{paymentId}": {
+      "schema": "FeePayment",
+      "description": "Separately stored student fee payment records"
+    },
+    "/attendance/{attendanceId}": {
+      "schema": "Attendance",
+      "description": "Independently stored student attendance records"
+    },
+    "/examFeePayments/{paymentId}": {
+      "schema": "ExamFeePayment",
+      "description": "Separately stored examination fee payment records"
+    },
+    "/auditLogs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Tamper-proof audit logs recording sensitive administrative events"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Student notifications and institutional announcements"
+    },
+    "/chat_conversations/{userId}": {
+      "schema": "ChatConversation",
+      "description": "User chat conversation document keyed by authenticated user UID"
+    },
+    "/chat_conversations/{userId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Message documents inside user chat conversation"
+    }
+  }
+}

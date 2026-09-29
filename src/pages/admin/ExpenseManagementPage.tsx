@@ -1,0 +1,473 @@
+import React, { useState, useEffect } from "react";
+import {
+  IndianRupee,
+  LayoutDashboard,
+  FileText,
+  Users,
+  Zap,
+  Calendar,
+  Plus,
+  RefreshCw,
+  TrendingDown,
+  Scale,
+  DollarSign,
+  PieChart,
+} from "lucide-react";
+import { api } from "../../services/api";
+import {
+  ExpenseItem,
+  ExpenseSummary,
+  FinancialOverviewData,
+  StaffSalaryItem,
+  ElectricityBillItem,
+} from "../../types";
+import { ExpenseOverview } from "../../components/expenses/ExpenseOverview";
+import { ExpenseTable } from "../../components/expenses/ExpenseTable";
+import { AddExpenseModal } from "../../components/expenses/AddExpenseModal";
+import { ExpenseDetailsModal } from "../../components/expenses/ExpenseDetailsModal";
+import { StaffSalarySection } from "../../components/expenses/StaffSalarySection";
+import { ElectricityBillSection } from "../../components/expenses/ElectricityBillSection";
+import { MonthlyExpenseReportModal } from "../../components/expenses/MonthlyExpenseReportModal";
+import { ExpensePredictionSection } from "../../components/expenses/ExpensePredictionSection";
+import { Sparkles } from "lucide-react";
+
+interface ExpenseManagementPageProps {
+  onShowToast?: (type: "success" | "error" | "info", title: string, message: string) => void;
+}
+
+export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ onShowToast }) => {
+  const [activeSubTab, setActiveSubTab] = useState<"overview" | "prediction" | "expenses" | "salaries" | "electricity">("overview");
+
+  // Data States
+  const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
+  const [summary, setSummary] = useState<ExpenseSummary | null>(null);
+  const [financialOverview, setFinancialOverview] = useState<FinancialOverviewData | null>(null);
+  const [salaries, setSalaries] = useState<StaffSalaryItem[]>([]);
+  const [electricityBills, setElectricityBills] = useState<ElectricityBillItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Filters for All Expenses
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedStatus, setSelectedStatus] = useState("All");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  // Modals
+  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<ExpenseItem | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<ExpenseItem | null>(null);
+  const [isMonthlyReportOpen, setIsMonthlyReportOpen] = useState(false);
+
+  // Fetch all core expense data
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [expRes, sumRes, finRes, salRes, ebRes] = await Promise.all([
+        api.expenses.getAll(),
+        api.expenses.getSummary(),
+        api.expenses.getFinancialOverview(),
+        api.expenses.getSalaries(),
+        api.expenses.getElectricityBills(),
+      ]);
+
+      if (expRes && expRes.success) setExpenses(expRes.data || []);
+      if (sumRes && sumRes.success) setSummary(sumRes.data || null);
+      if (finRes && finRes.success) setFinancialOverview(finRes.data || null);
+      if (salRes && salRes.success) setSalaries(salRes.data || []);
+      if (ebRes && ebRes.success) setElectricityBills(ebRes.data || []);
+    } catch (err: any) {
+      console.error("Failed to load expense data:", err);
+      if (onShowToast) {
+        onShowToast("error", "Data Error", "Could not synchronize expense ledger with backend.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // CRUD Handlers for Expenses
+  const handleSaveExpense = async (payload: any) => {
+    try {
+      if (editingExpense) {
+        const res = await api.expenses.update(editingExpense.id, payload);
+        if (res && res.success) {
+          if (onShowToast) onShowToast("success", "Expense Updated", `Voucher ${editingExpense.id} updated successfully.`);
+          loadData();
+          return true;
+        }
+      } else {
+        const res不易 = await api.expenses.create(payload);
+        if (res不易 && res不易.success) {
+          if (onShowToast) onShowToast("success", "Expense Recorded", `New expense voucher logged successfully.`);
+          loadData();
+          return true;
+        }
+      }
+    } catch (err: any) {
+      if (onShowToast) onShowToast("error", "Operation Failed", err.message || "Failed to record expense.");
+      throw err;
+    }
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    try {
+      const res = await api.expenses.delete(id);
+      if (res && res.success) {
+        if (onShowToast) onShowToast("success", "Expense Deleted", `Voucher ${id} has been removed.`);
+        loadData();
+      }
+    } catch (err: any) {
+      if (onShowToast) onShowToast("error", "Delete Failed", err.message || "Failed to remove expense.");
+    }
+  };
+
+  // Salary Handlers
+  const handleCreateSalary = async (data: any) => {
+    try {
+      const res = await api.expenses.createSalary(data);
+      if (res && res.success) {
+        if (onShowToast) onShowToast("success", "Salary Processed", `Staff salary recorded and synced into Central Expenses.`);
+        loadData();
+        return true;
+      }
+    } catch (err: any) {
+      let displayMsg = err.message || "Failed to process salary.";
+      if (
+        displayMsg.includes("Missing or insufficient permissions") ||
+        displayMsg.includes("PERMISSION_DENIED")
+      ) {
+        displayMsg =
+          "Permission Denied: Only authorized Admin and Accountant accounts are permitted to process staff salaries.";
+      } else if (displayMsg.startsWith("{") && displayMsg.endsWith("}")) {
+        try {
+          const parsed = JSON.parse(displayMsg);
+          if (
+            parsed.error &&
+            (parsed.error.includes("Missing or insufficient permissions") ||
+              parsed.error.includes("PERMISSION_DENIED"))
+          ) {
+            displayMsg =
+              "Permission Denied: Only authorized Admin and Accountant accounts are permitted to process staff salaries.";
+          } else if (parsed.error) {
+            displayMsg = parsed.error;
+          }
+        } catch {}
+      }
+      if (onShowToast) onShowToast("error", "Salary Processing Failed", displayMsg);
+      throw new Error(displayMsg);
+    }
+  };
+
+  const handleUpdateSalary = async (id: string, data: any) => {
+    try {
+      const res = await api.expenses.updateSalary(id, data);
+      if (res && res.success) {
+        if (onShowToast) onShowToast("success", "Salary Updated", `Staff salary record updated successfully.`);
+        loadData();
+        return true;
+      }
+    } catch (err: any) {
+      if (onShowToast) onShowToast("error", "Salary Update Failed", err.message || "Failed to update salary.");
+      throw err;
+    }
+  };
+
+  const handleDeleteSalary = async (id: string) => {
+    try {
+      const res = await api.expenses.deleteSalary(id);
+      if (res && res.success) {
+        if (onShowToast) onShowToast("success", "Salary Deleted", `Staff salary record removed.`);
+        loadData();
+        return true;
+      }
+    } catch (err: any) {
+      if (onShowToast) onShowToast("error", "Salary Delete Failed", err.message || "Failed to remove salary record.");
+      throw err;
+    }
+  };
+
+  // Electricity Bill Handlers
+  const handleCreateElectricityBill = async (data: any) => {
+    try {
+      const res = await api.expenses.createElectricityBill(data);
+      if (res && res.success) {
+        if (onShowToast) onShowToast("success", "Bill Recorded", `Electricity bill saved and synced into Central Expenses.`);
+        loadData();
+        return true;
+      }
+    } catch (err: any) {
+      if (onShowToast) onShowToast("error", "Electricity Bill Failed", err.message || "Failed to save bill.");
+      throw err;
+    }
+  };
+
+  const handleUpdateElectricityBill倍 = async (id: string, data: any) => {
+    try {
+      const res = await api.expenses.updateElectricityBill(id, data);
+      if (res && res.success) {
+        if (onShowToast) onShowToast("success", "Bill Updated", `Electricity bill record updated successfully.`);
+        loadData();
+        return true;
+      }
+    } catch (err: any) {
+      if (onShowToast) onShowToast("error", "Bill Update Failed", err.message || "Failed to update bill.");
+      throw err;
+    }
+  };
+
+  const handleDeleteElectricityBill = async (id: string) => {
+    try {
+      const res = await api.expenses.deleteElectricityBill(id);
+      if (res && res.success) {
+        if (onShowToast) onShowToast("success", "Bill Deleted", `Electricity bill record removed.`);
+        loadData();
+        return true;
+      }
+    } catch (err: any) {
+      if (onShowToast) onShowToast("error", "Bill Delete Failed", err.message || "Failed to delete bill.");
+      throw err;
+    }
+  };
+
+  // Filtered Expenses List for the Table
+  const filteredExpenses = expenses.filter((e) => {
+    const q = searchQuery.toLowerCase();
+    const matchesSearch =
+      !q ||
+      e.title?.toLowerCase().includes(q) ||
+      e.paid_to?.toLowerCase().includes(q) ||
+      e.id?.toLowerCase().includes(q) ||
+      e.reference_no?.toLowerCase().includes(q);
+
+    const matchesCategory不易 = selectedCategory === "All" || e.category === selectedCategory;
+    const matchesStatus不易 = selectedStatus === "All" || e.payment_status === selectedStatus;
+    const matchesFromDate = !fromDate || e.date >= fromDate;
+    const matchesToDate = !toDate || e.date <= toDate;
+
+    return matchesSearch && matchesCategory不易 && matchesStatus不易 && matchesFromDate && matchesToDate;
+  });
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* Top Header & Page Navigation */}
+      <div className="glass-card p-6 sm:p-7 rounded-3xl border border-white/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-3 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-violet-100 text-violet-700 border border-violet-200/60 shadow-2xs">
+              Institutional Finance Wing
+            </span>
+            <span className="text-xs text-slate-400 font-semibold">Admin & Accountant Portal</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Expense Management System
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Comprehensive audit, staff payroll, electricity utilities, and automated financial balance ledger.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <button
+            id="open-monthly-audit-btn"
+            onClick={() => setIsMonthlyReportOpen(true)}
+            className="px-4 py-2.5 rounded-2xl bg-white/80 hover:bg-white border border-violet-100 text-slate-700 text-xs font-bold flex items-center gap-2 shadow-2xs transition-all hover:scale-102"
+          >
+            <Calendar className="w-4 h-4 text-violet-600" />
+            Monthly Audit Statement
+          </button>
+          <button
+            id="open-add-expense-btn"
+            onClick={() => {
+              setEditingExpense(null);
+              setIsAddExpenseOpen(true);
+            }}
+            className="px-4.5 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white text-xs font-bold shadow-md shadow-violet-500/20 flex items-center gap-2 transition-all hover:scale-102"
+          >
+            <Plus className="w-4 h-4" />
+            Add Expense
+          </button>
+        </div>
+      </div>
+
+      {/* Sub-Navigation Tabs */}
+      <div className="glass-card p-2 rounded-3xl border border-white/80 shadow-xs flex items-center gap-2 overflow-x-auto">
+        <button
+          onClick={() => setActiveSubTab("overview")}
+          className={`py-2.5 px-4 text-xs font-bold rounded-2xl flex items-center gap-2 transition-all whitespace-nowrap ${
+            activeSubTab === "overview"
+              ? "bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-md shadow-violet-500/20"
+              : "text-slate-600 hover:text-violet-700 hover:bg-violet-50/70"
+          }`}
+        >
+          <LayoutDashboard className="w-4 h-4" />
+          Overview & Financial Balance
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab("prediction")}
+          className={`py-2.5 px-4 text-xs font-bold rounded-2xl flex items-center gap-2 transition-all whitespace-nowrap ${
+            activeSubTab === "prediction"
+              ? "bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-md shadow-violet-500/20"
+              : "text-slate-600 hover:text-violet-700 hover:bg-violet-50/70"
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-amber-400" />
+          Monthly Expense Prediction
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab("expenses")}
+          className={`py-2.5 px-4 text-xs font-bold rounded-2xl flex items-center gap-2 transition-all whitespace-nowrap ${
+            activeSubTab === "expenses"
+              ? "bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-md shadow-violet-500/20"
+              : "text-slate-600 hover:text-violet-700 hover:bg-violet-50/70"
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          All Expenses Ledger ({expenses.length})
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab("salaries")}
+          className={`py-2.5 px-4 text-xs font-bold rounded-2xl flex items-center gap-2 transition-all whitespace-nowrap ${
+            activeSubTab === "salaries"
+              ? "bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-md shadow-violet-500/20"
+              : "text-slate-600 hover:text-violet-700 hover:bg-violet-50/70"
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          Staff Salaries ({salaries.length})
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab("electricity")}
+          className={`py-2.5 px-4 text-xs font-bold rounded-2xl flex items-center gap-2 transition-all whitespace-nowrap ${
+            activeSubTab === "electricity"
+              ? "bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-md shadow-violet-500/20"
+              : "text-slate-600 hover:text-violet-700 hover:bg-violet-50/70"
+          }`}
+        >
+          <Zap className="w-4 h-4" />
+          Electricity Bills ({electricityBills.length})
+        </button>
+      </div>
+
+      {/* Tab Contents */}
+      {activeSubTab === "overview" && (
+        <ExpenseOverview
+          summary={summary}
+          financialOverview={financialOverview}
+          expenses={expenses}
+          onNavigateTab={(tab) => setActiveSubTab(tab as any)}
+          onOpenAddExpense={() => {
+            setEditingExpense(null);
+            setIsAddExpenseOpen(true);
+          }}
+          onOpenMonthlyReport={() => setIsMonthlyReportOpen(true)}
+        />
+      )}
+
+      {activeSubTab === "prediction" && (
+        <ExpensePredictionSection
+          expenses={expenses}
+          isLoading={isLoading}
+          onRefresh={loadData}
+          onOpenAddExpense={() => {
+            setEditingExpense(null);
+            setIsAddExpenseOpen(true);
+          }}
+        />
+      )}
+
+      {activeSubTab === "expenses" && (
+        <ExpenseTable
+          expenses={filteredExpenses}
+          isLoading={isLoading}
+          onRefresh={loadData}
+          onViewDetails={(exp) => {
+            setSelectedExpense(exp);
+            setIsDetailsOpen(true);
+          }}
+          onEdit={(exp) => {
+            setEditingExpense(exp);
+            setIsAddExpenseOpen(true);
+          }}
+          onDelete={handleDeleteExpense}
+          onAddNew={() => {
+            setEditingExpense(null);
+            setIsAddExpenseOpen(true);
+          }}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+          selectedStatus={selectedStatus}
+          setSelectedStatus={setSelectedStatus}
+          fromDate={fromDate}
+          setFromDate={setFromDate}
+          toDate={toDate}
+          setToDate={setToDate}
+        />
+      )}
+
+      {activeSubTab === "salaries" && (
+        <StaffSalarySection
+          salaries={salaries}
+          isLoading={isLoading}
+          onRefresh={loadData}
+          onCreateSalary={handleCreateSalary}
+          onUpdateSalary={handleUpdateSalary}
+          onDeleteSalary={handleDeleteSalary}
+        />
+      )}
+
+      {activeSubTab === "electricity" && (
+        <ElectricityBillSection
+          bills={electricityBills}
+          isLoading={isLoading}
+          onRefresh={loadData}
+          onCreateBill={handleCreateElectricityBill}
+          onUpdateBill={handleUpdateElectricityBill倍}
+          onDeleteBill={handleDeleteElectricityBill}
+        />
+      )}
+
+      {/* Add / Edit Expense Modal */}
+      <AddExpenseModal
+        isOpen={isAddExpenseOpen}
+        onClose={() => {
+          setIsAddExpenseOpen(false);
+          setEditingExpense(null);
+        }}
+        onSubmit={handleSaveExpense}
+        editingExpense={editingExpense}
+      />
+
+      {/* Details / Voucher Modal */}
+      <ExpenseDetailsModal
+        isOpen={isDetailsOpen}
+        onClose={() => {
+          setIsDetailsOpen(false);
+          setSelectedExpense(null);
+        }}
+        expense={selectedExpense}
+        onEdit={(exp) => {
+          setEditingExpense(exp);
+          setIsAddExpenseOpen(true);
+        }}
+      />
+
+      {/* Monthly Expense Report Statement Modal */}
+      <MonthlyExpenseReportModal
+        isOpen={isMonthlyReportOpen}
+        onClose={() => setIsMonthlyReportOpen(false)}
+      />
+    </div>
+  );
+};
