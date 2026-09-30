@@ -63,46 +63,8 @@ export const ParentPortalView: React.FC<ParentPortalViewProps> = ({
         );
       });
 
-      // Default fallback if brand new or demo session without seeded DB record
-      if (wards.length === 0) {
-        if (parentEmail.includes("ramasamy") || parentWardName.includes("kavitha")) {
-          wards = [
-            {
-              id: "STU-1045",
-              name: "Kavitha R",
-              registerNumber: "21AD045",
-              rollNo: "21AD045",
-              department: "aids",
-              year: "3rd Year",
-              grade: "B.Tech AIDS - Sem 5",
-              email: "kavitha.r@brightwood.edu",
-              parentName: user?.name || "Ramasamy M",
-              parentEmail: user?.email || "ramasamy.m@mail.com",
-              status: "active",
-            },
-          ];
-        } else {
-          // Default demo ward: Ava Thompson
-          wards = [
-            {
-              id: "STU-1042",
-              name: user?.wardName || "Ava Thompson",
-              registerNumber: user?.rollNo || "CSE-501",
-              rollNo: user?.rollNo || "CSE-501",
-              department: "cse",
-              year: "3rd Year",
-              grade: "B.Tech CSE - Sem 5",
-              email: "ava.thompson@brightwood.edu",
-              parentName: user?.name || "Mark Thompson",
-              parentEmail: user?.email || "mark.t@mail.com",
-              status: "active",
-            },
-          ];
-        }
-      }
-
       setAssociatedStudents(wards);
-      const activeWard = wards[0];
+      const activeWard = wards[0] || null;
       setSelectedStudent(activeWard);
 
       // Load invoices for this ward
@@ -113,27 +75,9 @@ export const ParentPortalView: React.FC<ParentPortalViewProps> = ({
             f.studentId === activeWard.id ||
             f.studentName?.toLowerCase() === activeWard.name.toLowerCase()
         );
-
-        if (wardFees.length > 0) {
-          setInvoices(wardFees);
-        } else {
-          setInvoices([
-            {
-              id: `INV-2026-${activeWard.registerNumber || "002"}`,
-              feeType: `${activeWard.grade || "B.Tech"} - Tuition & Science Lab Fee`,
-              amount: 1250,
-              paymentStatus: "Pending",
-              dueDate: "2026-08-30",
-            },
-            {
-              id: `INV-2026-001`,
-              feeType: "Semester 4 Tuition & Computer Facility",
-              amount: 1250,
-              paymentStatus: "Paid",
-              dueDate: "2026-06-15",
-            },
-          ]);
-        }
+        setInvoices(wardFees);
+      } else {
+        setInvoices([]);
       }
     } finally {
       setLoading(false);
@@ -148,28 +92,25 @@ export const ParentPortalView: React.FC<ParentPortalViewProps> = ({
         f.studentId === ward.id ||
         f.studentName?.toLowerCase() === ward.name.toLowerCase()
     );
-    if (wardFees.length > 0) {
-      setInvoices(wardFees);
-    } else {
-      setInvoices([
-        {
-          id: `INV-2026-${ward.registerNumber || "002"}`,
-          feeType: `${ward.grade || "B.Tech"} - Tuition & Science Lab Fee`,
-          amount: 1250,
-          paymentStatus: "Pending",
-          dueDate: "2026-08-30",
-        },
-      ]);
-    }
+    setInvoices(wardFees);
   };
 
-  const currentWard = selectedStudent || associatedStudents[0] || {
-    id: "STU-1042",
-    name: "Ava Thompson",
-    grade: "B.Tech CSE - Sem 5",
-    registerNumber: "CSE-501",
-    department: "cse",
-  };
+  const currentWard = selectedStudent || associatedStudents[0] || null;
+
+  const outstandingFee = useMemo(() => {
+    return invoices
+      .filter((inv) => inv.paymentStatus !== "Paid" && inv.status !== "Paid")
+      .reduce((sum, inv) => sum + (Number(inv.balance || (inv.amount - (inv.paidAmount || 0)) || inv.amount) || 0), 0);
+  }, [invoices]);
+
+  const earliestDue = useMemo(() => {
+    const pendingList = invoices.filter((inv) => inv.paymentStatus !== "Paid" && inv.status !== "Paid" && inv.dueDate);
+    if (pendingList.length > 0) {
+      pendingList.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+      return pendingList[0].dueDate;
+    }
+    return "No pending due";
+  }, [invoices]);
 
   return (
     <div className="space-y-6">
@@ -195,7 +136,7 @@ export const ParentPortalView: React.FC<ParentPortalViewProps> = ({
                 key={child.id}
                 onClick={() => handleSelectWard(child)}
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  currentWard.id === child.id
+                  currentWard?.id === child.id
                     ? "bg-white text-blue-900 shadow-sm"
                     : "text-blue-100 hover:bg-white/10"
                 }`}
@@ -212,6 +153,13 @@ export const ParentPortalView: React.FC<ParentPortalViewProps> = ({
           <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-3" />
           <p className="text-xs font-semibold text-slate-500">Loading associated student records...</p>
         </div>
+      ) : !currentWard ? (
+        <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs space-y-2">
+          <p className="text-base font-bold text-slate-700">No Associated Student Ward</p>
+          <p className="text-xs font-medium text-slate-400 max-w-md mx-auto">
+            No registered student records are currently linked to this parent account. Please contact the college administration to link your student ward.
+          </p>
+        </div>
       ) : (
         <>
           {/* Child Summary Stats */}
@@ -220,23 +168,27 @@ export const ParentPortalView: React.FC<ParentPortalViewProps> = ({
               <span className="text-xs font-bold text-slate-400 uppercase">Associated Ward</span>
               <h3 className="text-lg font-black text-slate-900 mt-1">{currentWard.name}</h3>
               <p className="text-xs text-blue-600 font-semibold mt-0.5">
-                {currentWard.grade || "B.Tech"} • Roll {currentWard.registerNumber || currentWard.rollNo || currentWard.id}
+                {currentWard.grade || currentWard.department?.toUpperCase() || "Student"} • Roll {currentWard.registerNumber || currentWard.rollNo || currentWard.id}
               </p>
             </div>
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-              <span className="text-xs font-bold text-slate-400 uppercase">Attendance</span>
-              <h3 className="text-2xl font-black text-emerald-600 mt-1">96.0%</h3>
-              <p className="text-xs text-slate-400 mt-1">Regular & Punctual</p>
+              <span className="text-xs font-bold text-slate-400 uppercase">Total Invoices</span>
+              <h3 className="text-2xl font-black text-slate-900 mt-1">{invoices.length}</h3>
+              <p className="text-xs text-slate-400 mt-1">Generated fee schedules</p>
             </div>
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-              <span className="text-xs font-bold text-slate-400 uppercase">Academic GPA</span>
-              <h3 className="text-2xl font-black text-blue-600 mt-1">3.92 / 4.0</h3>
-              <p className="text-xs text-slate-400 mt-1">Top 5% in department</p>
+              <span className="text-xs font-bold text-slate-400 uppercase">Settled Invoices</span>
+              <h3 className="text-2xl font-black text-emerald-600 mt-1">
+                {invoices.filter((i) => i.paymentStatus === "Paid" || i.status === "Paid").length}
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">Cleared receipts</p>
             </div>
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
               <span className="text-xs font-bold text-slate-400 uppercase">Outstanding Fee</span>
-              <h3 className="text-2xl font-black text-rose-600 mt-1">₹1,250.00</h3>
-              <p className="text-xs text-slate-400 mt-1">Due on Aug 30, 2026</p>
+              <h3 className="text-2xl font-black text-rose-600 mt-1">
+                ₹{outstandingFee.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">{earliestDue}</p>
             </div>
           </div>
 
@@ -251,71 +203,77 @@ export const ParentPortalView: React.FC<ParentPortalViewProps> = ({
               </div>
             </div>
 
-            <div className="divide-y divide-slate-100">
-              {invoices.map((inv, idx) => {
-                const isPaid = inv.paymentStatus === "Paid" || inv.status === "Paid";
-                const invId = inv.id || `INV-2026-00${idx + 1}`;
-                const title = inv.feeType || inv.title || "Tuition & Laboratory Fee";
-                const amount = inv.amount || 1250;
-                const dueDate = inv.dueDate || inv.due || "2026-08-30";
+            {invoices.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400 font-medium">
+                No fee invoices generated yet for this student ward.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {invoices.map((inv, idx) => {
+                  const isPaid = inv.paymentStatus === "Paid" || inv.status === "Paid";
+                  const invId = inv.id || `INV-${idx + 1}`;
+                  const title = inv.feeType || inv.title || "Tuition Fee";
+                  const amount = inv.amount || 0;
+                  const dueDate = inv.dueDate || inv.due || "N/A";
 
-                return (
-                  <div key={invId} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-xs text-slate-700">{invId}</span>
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            isPaid
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              : "bg-amber-50 text-amber-700 border border-amber-200"
-                          }`}
-                        >
-                          {isPaid ? "Paid" : "Pending"}
-                        </span>
+                  return (
+                    <div key={invId} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-xs text-slate-700">{invId}</span>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              isPaid
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : "bg-amber-50 text-amber-700 border border-amber-200"
+                            }`}
+                          >
+                            {isPaid ? "Paid" : "Pending"}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-slate-900 text-sm mt-1">{title}</h4>
+                        <p className="text-xs text-slate-400">Due Date: {dueDate}</p>
                       </div>
-                      <h4 className="font-bold text-slate-900 text-sm mt-1">{title}</h4>
-                      <p className="text-xs text-slate-400">Due Date: {dueDate}</p>
-                    </div>
 
-                    <div className="flex items-center gap-4">
-                      <span className="text-lg font-black text-slate-900">₹{amount.toFixed(2)}</span>
-                      {isPaid ? (
-                        <button
-                          onClick={() =>
-                            onViewReceipt({
-                              id: invId,
-                              student_name: currentWard.name,
-                              grade: currentWard.grade || "B.Tech",
-                              amount: amount,
-                              date: dueDate,
-                              fee_type: title,
-                            })
-                          }
-                          className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
-                        >
-                          <Download className="w-3.5 h-3.5" /> Download Receipt
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() =>
-                            onCollectFee({
-                              student: currentWard.name,
-                              grade: currentWard.grade || "B.Tech",
-                              amount: amount,
-                              id: invId,
-                            })
-                          }
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer"
-                        >
-                          Pay Invoice Online →
-                        </button>
-                      )}
+                      <div className="flex items-center gap-4">
+                        <span className="text-lg font-black text-slate-900">₹{amount.toFixed(2)}</span>
+                        {isPaid ? (
+                          <button
+                            onClick={() =>
+                              onViewReceipt({
+                                id: invId,
+                                student_name: currentWard.name,
+                                grade: currentWard.grade || "B.Tech",
+                                amount: amount,
+                                date: dueDate,
+                                fee_type: title,
+                              })
+                            }
+                            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5" /> Download Receipt
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              onCollectFee({
+                                student: currentWard.name,
+                                grade: currentWard.grade || "B.Tech",
+                                amount: amount,
+                                id: invId,
+                              })
+                            }
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer"
+                          >
+                            Pay Invoice Online →
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </>
       )}

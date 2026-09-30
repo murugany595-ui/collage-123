@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Calculator,
   IndianRupee,
@@ -11,7 +11,10 @@ import {
   ArrowUpRight,
   TrendingUp,
   Receipt,
+  Loader2,
 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import { api } from "../../services/api";
 
 export interface AccountantPortalViewProps {
   onCollectFee?: (invoice: any) => void;
@@ -28,25 +31,76 @@ export const AccountantPortalView: React.FC<AccountantPortalViewProps> = ({
   onNavigate = () => {},
   onShowToast = () => {},
 }) => {
+  const { user } = useAuth();
   const [quickStudent, setQuickStudent] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    todayCollections: 0,
+    todayCount: 0,
+    cashDrawer: 0,
+    pendingApprovalsCount: 0,
+    mtdRevenue: 0,
+  });
 
-  const recentTransactions = [
-    { id: "REC-9012", student: "Ava Thompson", grade: "B.Tech CSE - Sem 5", amount: 1250, method: "UPI QR", time: "10:14 AM", cashier: "Rita Álvarez" },
-    { id: "REC-9011", student: "Noah Patel", grade: "B.Tech ECE - Sem 3", amount: 1100, method: "Cash Desk", time: "09:40 AM", cashier: "Rita Álvarez" },
-    { id: "REC-9010", student: "Emma Wilson", grade: "MBA Finance - Sem 1", amount: 980, method: "Card POS", time: "09:12 AM", cashier: "Rita Álvarez" },
-    { id: "REC-9009", student: "Lucas Miller", grade: "B.Tech MECH - Sem 7", amount: 1250, method: "Cash Desk", time: "08:50 AM", cashier: "Rita Álvarez" },
-  ];
+  useEffect(() => {
+    let isMounted = true;
+    const loadAccountantData = async () => {
+      try {
+        setLoading(true);
+        const [historyRes, finRes] = await Promise.all([
+          api.fees.getPaymentsHistory({ limit: 10 }).catch(() => ({ data: [] })),
+          api.expenses.getFinancialOverview().catch(() => null),
+        ]);
+
+        if (!isMounted) return;
+
+        const txList = (historyRes?.data || []).map((f: any) => ({
+          id: f.receiptNumber || f.id || `REC-${f.id?.slice(-4)}`,
+          student: f.studentName || "Student",
+          grade: f.department?.toUpperCase() || "General",
+          amount: Number(f.paidAmount || f.amount || 0),
+          method: f.paymentMethod || "Cash Desk",
+          time: f.paymentDate ? new Date(f.paymentDate).toLocaleDateString("en-IN") : "Today",
+          cashier: user?.name || "Accountant",
+          dueDate: f.dueDate || "",
+          feeType: f.feeType || "Tuition Fee",
+        }));
+
+        setRecentTransactions(txList);
+
+        const totalRevenue = finRes?.totalFeesCollected || txList.reduce((acc: number, t: any) => acc + t.amount, 0);
+        const todayTotal = txList.slice(0, 5).reduce((acc: number, t: any) => acc + t.amount, 0);
+
+        setStats({
+          todayCollections: todayTotal,
+          todayCount: txList.length,
+          cashDrawer: todayTotal,
+          pendingApprovalsCount: 0,
+          mtdRevenue: totalRevenue,
+        });
+      } catch (err) {
+        console.warn("Could not load accountant portal data:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadAccountantData();
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.name]);
 
   const handleQuickCollect = () => {
-    if (!quickStudent) {
+    if (!quickStudent.trim()) {
       onShowToast("Please enter a student name or ID", "error");
       return;
     }
     onCollectFee({
-      student: quickStudent,
-      grade: "B.Tech CSE - Sem 5",
-      amount: 1250,
-      id: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
+      student: quickStudent.trim(),
+      amount: 0,
+      id: `INV-${Date.now().toString().slice(-4)}`,
     });
   };
 
@@ -60,7 +114,7 @@ export const AccountantPortalView: React.FC<AccountantPortalViewProps> = ({
           </span>
           <h1 className="text-2xl sm:text-3xl font-black mt-2">Cash & Fee Collection Terminal</h1>
           <p className="text-emerald-100 text-xs sm:text-sm mt-1">
-            Logged in as <strong>Rita Álvarez</strong> (Lead Bursar). Cash register balance: <strong className="text-white">₹4,580.00</strong>.
+            Logged in as <strong>{user?.name || "Accountant"}</strong> ({user?.designation || "Finance Office"}).
           </p>
         </div>
 
@@ -93,23 +147,29 @@ export const AccountantPortalView: React.FC<AccountantPortalViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-400 uppercase">Today's Collections</span>
-          <h3 className="text-2xl font-black text-emerald-600 mt-1">₹14,580.00</h3>
-          <p className="text-xs text-slate-400 mt-1">18 receipts settled today</p>
+          <h3 className="text-2xl font-black text-emerald-600 mt-1">
+            ₹{stats.todayCollections.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+          </h3>
+          <p className="text-xs text-slate-400 mt-1">{stats.todayCount} transactions recorded</p>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-bold text-slate-400 uppercase">Physical Cash in Drawer</span>
-          <h3 className="text-2xl font-black text-slate-900 mt-1">₹4,580.00</h3>
-          <p className="text-xs text-slate-400 mt-1">Counter balance</p>
+          <span className="text-xs font-bold text-slate-400 uppercase">Cash in Register</span>
+          <h3 className="text-2xl font-black text-slate-900 mt-1">
+            ₹{stats.cashDrawer.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+          </h3>
+          <p className="text-xs text-slate-400 mt-1">Active collection sum</p>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-400 uppercase">Pending Approvals</span>
-          <h3 className="text-2xl font-black text-amber-600 mt-1">14 Online Txns</h3>
-          <p className="text-xs text-slate-400 mt-1">Awaiting ledger credit</p>
+          <h3 className="text-2xl font-black text-amber-600 mt-1">{stats.pendingApprovalsCount} Online Txns</h3>
+          <p className="text-xs text-slate-400 mt-1">Awaiting verification</p>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-400 uppercase">Month-to-Date Revenue</span>
-          <h3 className="text-2xl font-black text-blue-600 mt-1">₹48,500.00</h3>
-          <p className="text-xs text-slate-400 mt-1">84.5% target achieved</p>
+          <h3 className="text-2xl font-black text-blue-600 mt-1">
+            ₹{stats.mtdRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+          </h3>
+          <p className="text-xs text-slate-400 mt-1">Total revenue collected</p>
         </div>
       </div>
 
@@ -124,10 +184,10 @@ export const AccountantPortalView: React.FC<AccountantPortalViewProps> = ({
 
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Student Name or ID</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Student Name or Register No</label>
               <input
                 type="text"
-                placeholder="e.g. STU-1042 or Ava Thompson"
+                placeholder="e.g. 21AD045 or Student Name"
                 value={quickStudent}
                 onChange={(e) => setQuickStudent(e.target.value)}
                 className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500/20"
@@ -136,7 +196,7 @@ export const AccountantPortalView: React.FC<AccountantPortalViewProps> = ({
 
             <button
               onClick={handleQuickCollect}
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
             >
               Open Instant Collect Window →
             </button>
@@ -145,14 +205,14 @@ export const AccountantPortalView: React.FC<AccountantPortalViewProps> = ({
           <div className="pt-4 border-t border-slate-100 space-y-2">
             <button
               onClick={() => onNavigate("payment-approval")}
-              className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition"
+              className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition cursor-pointer"
             >
-              <span>Verify Online Submissions (14)</span>
+              <span>Verify Online Submissions</span>
               <ArrowUpRight className="w-4 h-4 text-slate-400" />
             </button>
             <button
               onClick={() => onNavigate("generate-monthly-fees")}
-              className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition"
+              className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition cursor-pointer"
             >
               <span>Batch Generate Monthly Invoices</span>
               <ArrowUpRight className="w-4 h-4 text-slate-400" />
@@ -169,58 +229,71 @@ export const AccountantPortalView: React.FC<AccountantPortalViewProps> = ({
             </div>
             <button
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" /> Print Register
             </button>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-100">
-                <tr>
-                  <th className="px-4 py-3">Receipt #</th>
-                  <th className="px-4 py-3">Student</th>
-                  <th className="px-4 py-3">Payment Method</th>
-                  <th className="px-4 py-3">Amount</th>
-                  <th className="px-4 py-3">Time</th>
-                  <th className="px-4 py-3 text-right">Receipt</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {recentTransactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-slate-50/80 transition">
-                    <td className="px-4 py-3.5 font-mono font-bold text-slate-700">{tx.id}</td>
-                    <td className="px-4 py-3.5 font-bold text-slate-900">
-                      {tx.student} <span className="text-slate-400 font-normal">({tx.grade})</span>
-                    </td>
-                    <td className="px-4 py-3.5 text-slate-600">{tx.method}</td>
-                    <td className="px-4 py-3.5 font-black text-emerald-600">₹{tx.amount.toFixed(2)}</td>
-                    <td className="px-4 py-3.5 text-slate-400">{tx.time}</td>
-                    <td className="px-4 py-3.5 text-right">
-                      <button
-                        onClick={() =>
-                          onViewReceipt({
-                            id: tx.id,
-                            student_name: tx.student,
-                            grade: tx.grade,
-                            amount: tx.amount,
-                            date: "2026-08-14",
-                            fee_type: "Term Tuition & Lab Fee",
-                          })
-                        }
-                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-bold text-[11px]"
-                      >
-                        Print
-                      </button>
-                    </td>
+            {loading ? (
+              <div className="py-12 text-center">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-600 mx-auto mb-2" />
+                <p className="text-xs text-slate-400">Loading ledger records...</p>
+              </div>
+            ) : recentTransactions.length === 0 ? (
+              <div className="py-12 text-center text-xs text-slate-400 font-medium">
+                No payment transactions recorded in Firestore yet.
+              </div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-100">
+                  <tr>
+                    <th className="px-4 py-3">Receipt #</th>
+                    <th className="px-4 py-3">Student</th>
+                    <th className="px-4 py-3">Payment Method</th>
+                    <th className="px-4 py-3">Amount</th>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3 text-right">Receipt</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {recentTransactions.map((tx) => (
+                    <tr key={tx.id} className="hover:bg-slate-50/80 transition">
+                      <td className="px-4 py-3.5 font-mono font-bold text-slate-700">{tx.id}</td>
+                      <td className="px-4 py-3.5 font-bold text-slate-900">
+                        {tx.student} <span className="text-slate-400 font-normal">({tx.grade})</span>
+                      </td>
+                      <td className="px-4 py-3.5 text-slate-600">{tx.method}</td>
+                      <td className="px-4 py-3.5 font-black text-emerald-600">₹{tx.amount.toFixed(2)}</td>
+                      <td className="px-4 py-3.5 text-slate-400">{tx.time}</td>
+                      <td className="px-4 py-3.5 text-right">
+                        <button
+                          onClick={() =>
+                            onViewReceipt({
+                              id: tx.id,
+                              student_name: tx.student,
+                              grade: tx.grade,
+                              amount: tx.amount,
+                              date: tx.time,
+                              fee_type: tx.feeType,
+                            })
+                          }
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-bold text-[11px] cursor-pointer"
+                        >
+                          Print
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 };
+
+export default AccountantPortalView;

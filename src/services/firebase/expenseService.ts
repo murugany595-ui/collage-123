@@ -254,7 +254,7 @@ export const expenseService = {
     const now = new Date().toISOString();
     const yearVal = parseInt(data.salary_month.slice(0, 4), 10) || new Date().getFullYear();
     const currentUser = auth.currentUser;
-    const processedBy = currentUser?.email || currentUser?.uid || "accounts@brightwood.edu";
+    const processedBy = currentUser?.email || currentUser?.uid || "system";
 
     return this.createAdminExpense({
       title: `Salary: ${data.staff_name} (${data.salary_month})`,

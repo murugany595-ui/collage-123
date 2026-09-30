@@ -120,7 +120,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onShowToast = () => {}
         <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-200/70 sm:text-right">
           <p className="font-semibold text-slate-700">Account Identity</p>
           <p className="font-mono text-[11px] text-slate-400 truncate max-w-[200px] mt-0.5">
-            ID: {user?.id || user?.uid || "USR-001"}
+            ID: {user?.id || user?.uid || "N/A"}
           </p>
         </div>
       </div>
@@ -161,7 +161,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onShowToast = () => {}
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+1 (555) 000-0000"
+                placeholder="Phone number"
                 className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
@@ -173,7 +173,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onShowToast = () => {}
                   type="text"
                   value={rollNo}
                   onChange={(e) => setRollNo(e.target.value)}
-                  placeholder="e.g. 10A-042"
+                  placeholder="Roll / Register Number"
                   className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
@@ -186,7 +186,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onShowToast = () => {}
                   type="text"
                   value={wardName}
                   onChange={(e) => setWardName(e.target.value)}
-                  placeholder="e.g. Ava Thompson"
+                  placeholder="Ward student full name"
                   className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>

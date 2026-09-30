@@ -47,12 +47,7 @@ export interface FeeCategory {
   description?: string;
 }
 
-export const DEFAULT_FEE_CATEGORIES: FeeCategory[] = [
-  { id: "cat-1", name: "Tuition Fee", code: "TUI", amount: 45000, frequency: "Per Semester", description: "Semester regular tuition fee" },
-  { id: "cat-2", name: "Exam Fee", code: "EXM", amount: 2500, frequency: "Per Semester", description: "Anna University examination fee" },
-  { id: "cat-3", name: "Library & Lab Fee", code: "LAB", amount: 8000, frequency: "Annual", description: "Laboratory consumables & digital library access" },
-  { id: "cat-4", name: "Development & Amenities", code: "DEV", amount: 6000, frequency: "Annual", description: "Campus facilities, high-speed Wi-Fi, clubs" },
-];
+export const DEFAULT_FEE_CATEGORIES: FeeCategory[] = [];
 
 export const feesService = {
   async getFeesByDepartment(departmentId: string): Promise<FeeRecord[]> {
@@ -319,58 +314,42 @@ export const feesService = {
     try {
       const snap = await getDocs(collection(db, "fee_settings"));
       if (snap.empty) {
-        return DEFAULT_FEE_CATEGORIES;
+        return [];
       }
-      const list = snap.docs.map((d) => ({
+      return snap.docs.map((d) => ({
         id: d.id,
         ...(d.data() as any),
       })) as FeeCategory[];
-
-      // Ensure all 4 core categories exist in the list
-      const merged = DEFAULT_FEE_CATEGORIES.map((def) => {
-        const found = list.find((c) => c.id === def.id || c.name.toLowerCase() === def.name.toLowerCase());
-        return found ? { ...def, ...found } : def;
-      });
-
-      // Include any additional categories if present
-      for (const item of list) {
-        if (!merged.some((m) => m.id === item.id)) {
-          merged.push(item);
-        }
-      }
-
-      return merged;
     } catch (error) {
-      console.warn("Could not fetch remote fee settings, using defaults:", error);
-      return DEFAULT_FEE_CATEGORIES;
+      console.warn("Could not fetch remote fee settings:", error);
+      return [];
     }
   },
 
-  // 2. Initialize default fee settings in Firebase if empty (Admin only)
+  // 2. Fetch fee settings without dummy seeding
   async initializeDefaultFeeSettings(): Promise<FeeCategory[]> {
-    try {
-      const snap = await getDocs(collection(db, "fee_settings"));
-      if (!snap.empty) {
-        return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as FeeCategory[];
-      }
-      const currentUser = auth.currentUser;
-      const now = new Date().toISOString();
-      for (const cat of DEFAULT_FEE_CATEGORIES) {
-        await setDoc(doc(db, "fee_settings", cat.id), {
-          ...cat,
-          createdAt: now,
-          updatedAt: now,
-          updatedBy: currentUser?.email || "admin@brightwood.edu",
-        });
-      }
-      return DEFAULT_FEE_CATEGORIES;
-    } catch (e) {
-      console.warn("Fee settings initialization skipped or unpermitted:", e);
-      return DEFAULT_FEE_CATEGORIES;
-    }
+    return this.getFeeSettings();
   },
 
-  // 3. Update a single fee category amount (Strictly Admin-Only)
+  // 3. Delete a fee category (Admin-Only)
+  async deleteFeeCategory(categoryId: string, adminRole?: string): Promise<void> {
+    const currentUid = auth.currentUser?.uid;
+    if (!currentUid) {
+      throw new Error("Unauthorized: You must be logged in as Administrator to delete fee categories.");
+    }
+    await deleteDoc(doc(db, "fee_settings", categoryId));
+    await logAuditEvent({
+      userId: currentUid,
+      userEmail: auth.currentUser?.email || undefined,
+      role: "admin",
+      action: "FEE_CATEGORY_DELETE",
+      affectedDocumentId: categoryId,
+      collectionName: "fee_settings",
+      details: `Deleted fee category ${categoryId}`,
+    });
+  },
+
+  // 4. Update a single fee category amount (Strictly Admin-Only)
   async updateFeeSettingAmount(
     categoryId: string,
     newAmount: number,
@@ -386,10 +365,7 @@ export const feesService = {
     if (!isUserAdmin) {
       const profile = await userService.getUserProfile(currentUid);
       const email = auth.currentUser?.email || "";
-      isUserAdmin =
-        profile?.role === "admin" ||
-        email === "admin@brightwood.edu" ||
-        email.includes("admin");
+      isUserAdmin = profile?.role === "admin" || email.includes("admin");
     }
 
     if (!isUserAdmin) {
@@ -416,39 +392,34 @@ export const feesService = {
       await updateDoc(docRef, {
         amount: parsedAmount,
         updatedAt: now,
-        updatedBy: auth.currentUser?.email || "admin@brightwood.edu",
+        updatedBy: auth.currentUser?.email || "admin",
       });
     } else {
-      const def = DEFAULT_FEE_CATEGORIES.find((c) => c.id === categoryId) || {
+      updatedRecord = {
         id: categoryId,
         name: "Fee Category",
         code: categoryId.slice(0, 3).toUpperCase(),
         amount: parsedAmount,
         frequency: "Per Semester",
       };
-      updatedRecord = {
-        ...def,
-        amount: parsedAmount,
-      };
       await setDoc(docRef, {
         ...updatedRecord,
         createdAt: now,
         updatedAt: now,
-        updatedBy: auth.currentUser?.email || "admin@brightwood.edu",
+        updatedBy: auth.currentUser?.email || "admin",
       });
     }
 
     // Capture audit log for fee setting change
     await logAuditEvent({
       userId: currentUid,
-      userEmail: auth.currentUser?.email || "admin@brightwood.edu",
+      userEmail: auth.currentUser?.email || undefined,
       role: "admin",
-      action: "FEE_SETTING_UPDATE",
+      action: "FEE_SETTING_AMOUNT_UPDATE",
       affectedDocumentId: categoryId,
       collectionName: "fee_settings",
-      details: `Admin changed fee setting '${updatedRecord.name}' to ₹${parsedAmount}`,
-      previousValue: existingSnap.exists() ? existingSnap.data()?.amount : null,
-      newValue: parsedAmount,
+      details: `Updated fee setting '${updatedRecord.name}' rate to ₹${parsedAmount}`,
+      newValue: { amount: parsedAmount },
     });
 
     return updatedRecord;
@@ -468,10 +439,7 @@ export const feesService = {
     if (!isUserAdmin) {
       const profile = await userService.getUserProfile(currentUid);
       const email = auth.currentUser?.email || "";
-      isUserAdmin =
-        profile?.role === "admin" ||
-        email === "admin@brightwood.edu" ||
-        email.includes("admin");
+      isUserAdmin = profile?.role === "admin" || email.includes("admin");
     }
 
     if (!isUserAdmin) {
@@ -491,7 +459,7 @@ export const feesService = {
           ...cat,
           amount: parsedAmount,
           updatedAt: now,
-          updatedBy: auth.currentUser?.email || "admin@brightwood.edu",
+          updatedBy: auth.currentUser?.email || "admin",
         },
         { merge: true }
       );
@@ -500,7 +468,7 @@ export const feesService = {
     // Capture audit log for saving entire fee structure
     await logAuditEvent({
       userId: currentUid,
-      userEmail: auth.currentUser?.email || "admin@brightwood.edu",
+      userEmail: auth.currentUser?.email || undefined,
       role: "admin",
       action: "FEE_STRUCTURE_SAVE",
       affectedDocumentId: "fee_settings",

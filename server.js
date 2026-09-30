@@ -35,14 +35,16 @@ if (foundBackend) {
 const serverAuth = getServerAuth(serverApp);
 const serverDb = initServerFirestore(serverApp, { experimentalForceLongPolling: true });
 
-// Auto-authenticate backend on startup with admin credentials so server can perform privileged queries and atomic writes
-serverSignIn(serverAuth, "admin@brightwood.edu", "Password123!")
-  .then(() => {
-    console.log("[Server] Firebase Admin Session initialized successfully.");
-  })
-  .catch((err) => {
-    console.warn("[Server] Firebase Admin Session warning:", err.message);
-  });
+// Optional: authenticate backend on startup if admin credentials are provided in env
+if (process.env.FIREBASE_ADMIN_EMAIL && process.env.FIREBASE_ADMIN_PASSWORD) {
+  serverSignIn(serverAuth, process.env.FIREBASE_ADMIN_EMAIL, process.env.FIREBASE_ADMIN_PASSWORD)
+    .then(() => {
+      console.log("[Server] Firebase Admin Session initialized successfully.");
+    })
+    .catch((err) => {
+      console.warn("[Server] Firebase Admin Session warning:", err.message);
+    });
+}
 
 // Helper for local context-aware fallback when external API hits rate limits or spikes
 function generateLocalFallbackReply({ message = "", role = "student", user = {}, context = {} }) {
@@ -129,15 +131,17 @@ function generateLocalFallbackReply({ message = "", role = "student", user = {},
   // 6. Attendance / Shortage / Percentage
   if (/attendance|present|absent|shortage|percentage|kammi|leave count/i.test(q)) {
     const att = context.attendanceSummary || {};
-    const rate = att.attendancePercentage || 94;
-    const isShortage = rate < 75;
+    const rate = att.attendancePercentage !== undefined ? att.attendancePercentage : 0;
+    const isShortage = att.totalClasses > 0 && rate < 75;
 
     return {
-      reply: `Ungaloda current overall attendance: **${rate}%**.\n${
-        isShortage
-          ? "⚠️ **Attendance Shortage Alert**: Ungaloda attendance 75%-ku keezhe irukku. Please attend all regular classes or submit an Attendance Correction / On Duty (OD) form."
-          : "✅ Ungaloda attendance safe zone-il irukku (University 75% minimum criteria satisfied)."
-      }`,
+      reply: att.totalClasses === 0
+        ? "No attendance records have been registered for your account yet."
+        : `Ungaloda current overall attendance: **${rate}%**.\n${
+            isShortage
+              ? "⚠️ **Attendance Shortage Alert**: Ungaloda attendance 75%-ku keezhe irukku. Please attend all regular classes or submit an Attendance Correction / On Duty (OD) form."
+              : "✅ Ungaloda attendance safe zone-il irukku (University 75% minimum criteria satisfied)."
+          }`,
       actions: [
         { label: "Open Attendance Portal", target: "nav:attendance" },
         { label: "Attendance Correction Form", target: "form:attendance_correction" },
@@ -231,39 +235,27 @@ async function startServer() {
 
       // 2. Server-side Role-Based Authorization Check
       // Only Admin and Accountant users are authorized to process salaries
-      const isPrivilegedEmail =
-        callerEmail === "admin@brightwood.edu" ||
-        callerEmail === "accounts@brightwood.edu" ||
-        callerEmail === "murugany595@gmail.com";
+      let isAuthorized = false;
+      let userRole = "unauthorized";
 
-      let isAuthorized = isPrivilegedEmail;
-      let userRole = isPrivilegedEmail
-        ? callerEmail.includes("account")
-          ? "accountant"
-          : "admin"
-        : "unauthorized";
-
-      if (!isAuthorized) {
-        // Query users/{uid} or admins/{uid} using server Firestore
-        try {
-          const userDocSnap = await getDoc(doc(serverDb, "users", callerUid));
-          if (userDocSnap.exists()) {
-            const profile = userDocSnap.data();
-            if (profile.role === "admin" || profile.role === "accountant") {
-              isAuthorized = true;
-              userRole = profile.role;
-            }
+      try {
+        const userDocSnap = await getDoc(doc(serverDb, "users", callerUid));
+        if (userDocSnap.exists()) {
+          const profile = userDocSnap.data();
+          if (profile.role === "admin" || profile.role === "accountant") {
+            isAuthorized = true;
+            userRole = profile.role;
           }
-          if (!isAuthorized) {
-            const adminDocSnap = await getDoc(doc(serverDb, "admins", callerUid));
-            if (adminDocSnap.exists()) {
-              isAuthorized = true;
-              userRole = "admin";
-            }
-          }
-        } catch (dbErr) {
-          console.warn("[Server] Role check error:", dbErr.message);
         }
+        if (!isAuthorized) {
+          const adminDocSnap = await getDoc(doc(serverDb, "admins", callerUid));
+          if (adminDocSnap.exists()) {
+            isAuthorized = true;
+            userRole = "admin";
+          }
+        }
+      } catch (dbErr) {
+        console.warn("[Server] Role check error:", dbErr.message);
       }
 
       // Explicitly reject Student, Parent, and unauthorized callers

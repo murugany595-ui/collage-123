@@ -99,17 +99,17 @@ export const parentService = {
         if (migrated.length > 0) {
           list = migrated;
         } else {
-          // Sync from department students
+          // Sync from department students if any exist with parent email
           const students = await studentService.getAllStudents();
-          for (const s of students.filter((st) => st.parentName || st.parentEmail)) {
+          for (const s of students.filter((st) => st.parentName && st.parentEmail)) {
             const pId = s.parentId || `PAR-${s.id}`;
-            const pEmail = s.parentEmail || `parent.${s.registerNumber.toLowerCase()}@brightwood.edu`;
+            const pEmail = s.parentEmail!;
             const parentDoc: ParentRecord = {
               id: pId,
               parentId: pId,
               name: s.parentName || `Guardian of ${s.name}`,
               email: pEmail,
-              phone: s.parentPhone || s.phone || "+91 98401 23456",
+              phone: s.parentPhone || s.phone || "",
               studentId: s.id,
               linkedStudentId: s.id,
               studentRegisterNumber: s.registerNumber,
@@ -166,13 +166,16 @@ export const parentService = {
   },
 
   async createParent(data: Partial<ParentRecord> & { password?: string }): Promise<string> {
+    if (!data.email) {
+      throw new Error("Parent email is required");
+    }
     const parentId = data.parentId || `PAR-${Date.now().toString().slice(-6)}`;
     const now = new Date().toISOString();
     const payload: ParentRecord = {
       id: parentId,
       parentId,
       name: data.name || "Parent Guardian",
-      email: data.email || `parent.${parentId}@brightwood.edu`,
+      email: data.email.trim().toLowerCase(),
       phone: data.phone || "",
       studentId: data.linkedStudentId || data.studentId || "",
       linkedStudentId: data.linkedStudentId || data.studentId || "",
@@ -197,11 +200,10 @@ export const parentService = {
       rollNo: payload.studentRegisterNumber,
     }, { merge: true });
 
-    // 3. If password provided or default, attempt Firebase Auth user creation
-    if (payload.email) {
+    // 3. If password provided, attempt Firebase Auth user creation
+    if (payload.email && data.password) {
       try {
-        const pwd = data.password || "Parent@123";
-        await createUserWithEmailAndPassword(auth, payload.email.trim().toLowerCase(), pwd).catch(() => {});
+        await createUserWithEmailAndPassword(auth, payload.email, data.password).catch(() => {});
       } catch (authErr) {
         console.warn("Parent account auth provision note:", authErr);
       }

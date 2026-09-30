@@ -58,20 +58,24 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
   const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const [feesSummary, setFeesSummary] = useState<any>(null);
+
   const loadReportData = async () => {
     setIsLoading(true);
     try {
-      const [finRes, examRes, expRes, attRes] = await Promise.allSettled([
+      const [finRes, examRes, expRes, attRes, feesRes] = await Promise.allSettled([
         api.expenses.getFinancialOverview(),
         api.examFees.getSummary(),
         api.expenses.getSummary(),
         api.attendance.getSummary(),
+        api.fees.getSummary(),
       ]);
 
       if (finRes.status === "fulfilled" && finRes.value?.success) setFinancialData(finRes.value.data);
       if (examRes.status === "fulfilled" && examRes.value?.success) setExamSummary(examRes.value.data);
       if (expRes.status === "fulfilled" && expRes.value?.success) setExpenseSummary(expRes.value.data);
       if (attRes.status === "fulfilled" && attRes.value?.success) setAttendanceSummary(attRes.value.data);
+      if (feesRes.status === "fulfilled" && feesRes.value?.success) setFeesSummary(feesRes.value.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -83,42 +87,42 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
     loadReportData();
   }, []);
 
-  const totalFees = financialData?.totalFeesCollected || 5125.0;
-  const examFees = examSummary?.collectedExamFees || 10000.0;
-  const totalExpenses = financialData?.totalExpenses || 47650.0;
+  const totalFees = financialData?.totalFeesCollected || 0;
+  const examFees = examSummary?.collectedExamFees || 0;
+  const totalExpenses = financialData?.totalExpenses || 0;
   const netBalance = totalFees + examFees - totalExpenses;
 
-  // Monthly breakdown
-  const monthlyData = [
-    { month: "Jan", fees: 45000, exams: 8000, expenses: 28000 },
-    { month: "Feb", fees: 48000, exams: 9500, expenses: 29500 },
-    { month: "Mar", fees: 52000, exams: 12000, expenses: 31000 },
-    { month: "Apr", fees: 54000, exams: 11000, expenses: 30000 },
-    { month: "May", fees: 49000, exams: 7000, expenses: 32000 },
-    { month: "Jun", fees: 58000, exams: 10000, expenses: 34000 },
-    { month: "Jul", fees: 62000, exams: 14000, expenses: 35500 },
-    { month: "Aug", fees: 65000, exams: 10000, expenses: 36800 },
-  ];
+  // Monthly breakdown from real data
+  const monthlyData = financialData?.monthlyTrends && financialData.monthlyTrends.length > 0
+    ? financialData.monthlyTrends
+    : [];
 
-  // Department fee collection
-  const deptFeeData = [
-    { dept: "Computer Science", collected: 18500, pending: 2400 },
-    { dept: "Electronics (ECE)", collected: 14200, pending: 3100 },
-    { dept: "Mechanical Eng", collected: 11800, pending: 1900 },
-    { dept: "Data Science & AI", collected: 16400, pending: 2800 },
-    { dept: "MBA Management", collected: 19200, pending: 1500 },
-  ];
+  // Department fee collection from real data
+  const deptFeeData = (feesSummary?.departmentBreakdown || []).map((d: any) => ({
+    dept: d.department || d.name || "Dept",
+    collected: d.collected || 0,
+    pending: d.pending || 0,
+  }));
 
-  // Expense categories
-  const expenseCatData = [
-    { name: "Staff Salary", amount: 34500, pct: "72.4%" },
-    { name: "Electricity Bills", amount: 3750, pct: "7.9%" },
-    { name: "Water & Maintenance", amount: 2800, pct: "5.9%" },
-    { name: "Internet / Wi-Fi", amount: 2400, pct: "5.0%" },
-    { name: "Laboratory & Chemicals", amount: 2200, pct: "4.6%" },
-    { name: "Stationary & Office", amount: 1200, pct: "2.5%" },
-    { name: "Security & Housekeeping", amount: 800, pct: "1.7%" },
-  ];
+  // Expense categories from real data
+  const expenseCatData: { name: string; amount: number; pct: string }[] = [];
+  if (expenseSummary) {
+    const tot = expenseSummary.totalExpenses || 1;
+    if (expenseSummary.staffSalaryTotal > 0) {
+      expenseCatData.push({
+        name: "Staff Salary",
+        amount: expenseSummary.staffSalaryTotal,
+        pct: `${Math.round((expenseSummary.staffSalaryTotal / tot) * 100)}%`,
+      });
+    }
+    if (expenseSummary.electricityTotal > 0) {
+      expenseCatData.push({
+        name: "Electricity Bills",
+        amount: expenseSummary.electricityTotal,
+        pct: `${Math.round((expenseSummary.electricityTotal / tot) * 100)}%`,
+      });
+    }
+  }
 
   const handleExportCSV = () => {
     let csvData = "";

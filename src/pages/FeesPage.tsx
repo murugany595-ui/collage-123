@@ -45,10 +45,7 @@ export const FeesPage: React.FC<FeesPageProps> = ({
   onShowToast = () => {},
 }) => {
   const { user } = useAuth();
-  const isUserAdmin =
-    user?.role === "admin" ||
-    user?.email === "admin@brightwood.edu" ||
-    Boolean(user?.email?.includes("admin"));
+  const isUserAdmin = user?.role === "admin";
 
   // Navigation sub-tab
   const [activeTab, setActiveTab] = useState<"ledger" | "history" | "categories" | "batch">("ledger");

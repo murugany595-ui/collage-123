@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { handleFirestoreError, OperationType } from "./firestoreErrors";
 
@@ -102,6 +102,17 @@ export const userService = {
       return snap.docs.map((d) => ({ uid: d.id, ...(d.data() as any) }));
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, path);
+      return [];
+    }
+  },
+
+  async deleteUser(uid: string): Promise<void> {
+    if (!uid) return;
+    try {
+      await deleteDoc(doc(db, "users", uid));
+      await deleteDoc(doc(db, "admins", uid)).catch(() => {});
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `users/${uid}`);
     }
   },
 };

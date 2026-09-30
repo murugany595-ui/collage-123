@@ -20,6 +20,11 @@ import {
 } from "lucide-react";
 import { api } from "../services/api";
 
+import { studentService } from "../services/firebase/studentService";
+import { feesService } from "../services/firebase/feesService";
+import { attendanceService } from "../services/firebase/attendanceService";
+import { examService } from "../services/firebase/examService";
+
 export interface StudentDetailsPageProps {
   studentId?: string;
   onNavigate?: (tab: string) => void;
@@ -29,50 +34,144 @@ export interface StudentDetailsPageProps {
 }
 
 export const StudentDetailsPage: React.FC<StudentDetailsPageProps> = ({
-  studentId = "STU-1042",
+  studentId,
   onNavigate = () => {},
   onCollectFee = () => {},
   onViewReceipt = () => {},
 }) => {
   const [activeTab, setActiveTab] = useState<"overview" | "fees" | "attendance" | "results" | "assignments">("overview");
-  const [studentData, setStudentData] = useState<any>({
-    id: studentId,
-    name: "Ava Thompson",
-    roll: "CSE-501",
-    grade: "B.Tech CSE - Sem 5",
-    gender: "Female",
-    dob: "2005-05-14",
-    bloodGroup: "O+",
-    email: "ava.thompson@ourcollege.edu",
-    phone: "+1 555-0192",
-    guardian: "Mark Thompson",
-    guardianPhone: "+1 555-201-3344",
-    guardianEmail: "mark.t@ourcollege.edu",
-    address: "42 West End Blvd, Northfield",
-    admissionDate: "2024-08-01",
-    status: "Active",
-  });
-
-  const [invoices, setInvoices] = useState<any[]>([
-    { id: "INV-2026-001", type: "Semester 4 Tuition Fee", amount: 1250, paid: 1250, balance: 0, dueDate: "2026-06-15", status: "Paid" },
-    { id: "INV-2026-002", type: "Semester 5 Tuition Fee", amount: 1250, paid: 0, balance: 1250, dueDate: "2026-08-30", status: "Pending" },
-    { id: "INV-2026-003", type: "Annual Campus Lab & Library Fee", amount: 450, paid: 450, balance: 0, dueDate: "2026-05-10", status: "Paid" },
-  ]);
-
+  const [loading, setLoading] = useState(true);
+  const [studentData, setStudentData] = useState<any>(null);
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [attendanceStats, setAttendanceStats] = useState({
-    present: 142,
-    absent: 4,
-    late: 2,
-    rate: "96.0%",
+    present: 0,
+    absent: 0,
+    late: 0,
+    rate: "0%",
   });
+  const [examResults, setExamResults] = useState<any[]>([]);
 
-  const [examResults, setExamResults] = useState([
-    { subject: "Advanced Mathematics", marks: "94/100", grade: "A+", remarks: "Outstanding problem solving" },
-    { subject: "Physics & Mechanics", marks: "88/100", grade: "A", remarks: "Great lab execution" },
-    { subject: "Chemistry", marks: "91/100", grade: "A+", remarks: "Excellent grasp of concepts" },
-    { subject: "English Literature", marks: "85/100", grade: "A", remarks: "Strong essays" },
-    { subject: "Computer Science", marks: "98/100", grade: "A+", remarks: "Top in section" },
-  ]);
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!studentId) {
+        setStudentData(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const allStudents = await studentService.getAllStudents();
+        const match = allStudents.find((s) => s.id === studentId || (s as any).registerNumber === studentId);
+
+        if (match) {
+          setStudentData({
+            id: match.id,
+            name: match.name,
+            roll: match.registerNumber || match.id,
+            grade: match.department ? `${match.department.toUpperCase()} - ${match.year || "Year 1"}` : (match.year || "N/A"),
+            department: match.department,
+            gender: (match as any).gender || "N/A",
+            dob: (match as any).dob || "N/A",
+            bloodGroup: (match as any).bloodGroup || "N/A",
+            email: match.email || "N/A",
+            phone: match.phone || "N/A",
+            guardian: (match as any).guardianName || (match as any).guardian || "N/A",
+            guardianPhone: (match as any).guardianPhone || "N/A",
+            guardianEmail: (match as any).guardianEmail || "N/A",
+            address: (match as any).address || "N/A",
+            admissionDate: (match as any).createdAt ? new Date((match as any).createdAt).toLocaleDateString() : "N/A",
+            status: (match as any).status || "Active",
+          });
+
+          // Load student invoices from fees
+          const allFees = await feesService.getAllFees().catch(() => []);
+          const studentFees = allFees.filter(
+            (f) => f.studentId === match.id || f.studentName?.toLowerCase() === match.name.toLowerCase()
+          );
+          setInvoices(
+            studentFees.map((f) => ({
+              id: f.id,
+              type: f.feeType,
+              amount: Number(f.amount) || 0,
+              paid: Number(f.paidAmount) || 0,
+              balance: Number(f.balance ?? Math.max(0, (f.amount || 0) - (f.paidAmount || 0))),
+              dueDate: f.dueDate,
+              status: f.paymentStatus || "Pending",
+            }))
+          );
+
+          // Load real attendance summary
+          const attSummary = await attendanceService.getAttendanceSummary(undefined, match.department, {
+            student_id: match.id,
+          }).catch(() => null);
+
+          if (attSummary) {
+            setAttendanceStats({
+              present: attSummary.present,
+              absent: attSummary.absent,
+              late: attSummary.leave,
+              rate: `${attSummary.attendancePercentage}%`,
+            });
+          }
+
+          // Load real exams
+          const allExams = await examService.getAllExams().catch(() => []);
+          const studentExams = allExams.filter(
+            (e) =>
+              e.student_id === match.id ||
+              e.student_name?.toLowerCase() === match.name.toLowerCase() ||
+              (e.department && match.department && e.department.toLowerCase() === match.department.toLowerCase())
+          );
+          setExamResults(
+            studentExams.map((e) => ({
+              subject: e.exam_name,
+              marks: e.fee_amount ? `₹${e.fee_amount}` : "N/A",
+              grade: e.status,
+              remarks: e.remarks || `Due: ${e.due_date || "N/A"}`,
+            }))
+          );
+        } else {
+          setStudentData(null);
+          setInvoices([]);
+          setExamResults([]);
+        }
+      } catch (err) {
+        console.error("Error loading student profile:", err);
+        setStudentData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [studentId]);
+
+  if (loading) {
+    return (
+      <div className="bg-white p-12 rounded-2xl border border-slate-200/80 text-center text-slate-400 text-xs">
+        Loading student record...
+      </div>
+    );
+  }
+
+  if (!studentData) {
+    return (
+      <div className="bg-white p-12 rounded-2xl border border-slate-200/80 text-center space-y-4">
+        <p className="text-slate-500 font-semibold text-sm">Student record not found</p>
+        <button
+          onClick={() => onNavigate("students-list")}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+        >
+          Back to Student Directory
+        </button>
+      </div>
+    );
+  }
+
+  const outstandingBalance = invoices
+    .filter((inv) => inv.status !== "Paid")
+    .reduce((acc, inv) => acc + (inv.balance || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -112,7 +211,10 @@ export const StudentDetailsPage: React.FC<StudentDetailsPageProps> = ({
 
           <div className="flex flex-wrap items-center gap-2.5">
             <button
-              onClick={() => onCollectFee({ ...studentData, amount: 1250, id: "INV-2026-002" })}
+              onClick={() => {
+                const pendingInv = invoices.find((i) => i.balance > 0);
+                onCollectFee(pendingInv ? { ...studentData, ...pendingInv, student: studentData.name } : studentData);
+              }}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
             >
               <CreditCard className="w-4 h-4" />
@@ -194,7 +296,7 @@ export const StudentDetailsPage: React.FC<StudentDetailsPageProps> = ({
               </div>
               <div>
                 <span className="text-slate-400 block font-medium">Relationship</span>
-                <span className="font-semibold text-slate-800">Father</span>
+                <span className="font-semibold text-slate-800">Guardian</span>
               </div>
               <div>
                 <span className="text-slate-400 block font-medium">Guardian Phone</span>
@@ -222,7 +324,7 @@ export const StudentDetailsPage: React.FC<StudentDetailsPageProps> = ({
               <p className="text-xs text-slate-400">History of billed terms and balance status</p>
             </div>
             <span className="text-xs font-bold px-3 py-1 bg-amber-50 text-amber-800 rounded-lg border border-amber-200">
-              Outstanding Balance: ₹1,250.00
+              Outstanding Balance: ₹{outstandingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
 
@@ -241,54 +343,62 @@ export const StudentDetailsPage: React.FC<StudentDetailsPageProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {invoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-slate-50/80 transition">
-                    <td className="px-6 py-4 font-mono font-bold text-slate-700">{inv.id}</td>
-                    <td className="px-6 py-4 font-semibold text-slate-900">{inv.type}</td>
-                    <td className="px-6 py-4 text-slate-500">{inv.dueDate}</td>
-                    <td className="px-6 py-4 font-bold text-slate-900">₹{inv.amount.toFixed(2)}</td>
-                    <td className="px-6 py-4 text-emerald-600 font-bold">₹{inv.paid.toFixed(2)}</td>
-                    <td className="px-6 py-4 font-bold text-rose-600">₹{inv.balance.toFixed(2)}</td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                          inv.status === "Paid"
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : "bg-amber-50 text-amber-700 border-amber-200"
-                        }`}
-                      >
-                        {inv.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      {inv.balance > 0 ? (
-                        <button
-                          onClick={() => onCollectFee({ ...studentData, ...inv, student: studentData.name })}
-                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-[11px] transition"
-                        >
-                          Collect Fee
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() =>
-                            onViewReceipt({
-                              id: inv.id,
-                              student_name: studentData.name,
-                              student_id: studentData.id,
-                              grade: studentData.grade,
-                              amount: inv.amount,
-                              date: inv.dueDate,
-                              fee_type: inv.type,
-                            })
-                          }
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-[11px] transition"
-                        >
-                          Receipt
-                        </button>
-                      )}
+                {invoices.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
+                      No fee invoices recorded for this student.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  invoices.map((inv) => (
+                    <tr key={inv.id} className="hover:bg-slate-50/80 transition">
+                      <td className="px-6 py-4 font-mono font-bold text-slate-700">{inv.id}</td>
+                      <td className="px-6 py-4 font-semibold text-slate-900">{inv.type}</td>
+                      <td className="px-6 py-4 text-slate-500">{inv.dueDate}</td>
+                      <td className="px-6 py-4 font-bold text-slate-900">₹{inv.amount.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-emerald-600 font-bold">₹{inv.paid.toFixed(2)}</td>
+                      <td className="px-6 py-4 font-bold text-rose-600">₹{inv.balance.toFixed(2)}</td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                            inv.status === "Paid"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : "bg-amber-50 text-amber-700 border-amber-200"
+                          }`}
+                        >
+                          {inv.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {inv.balance > 0 ? (
+                          <button
+                            onClick={() => onCollectFee({ ...studentData, ...inv, student: studentData.name })}
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-[11px] transition"
+                          >
+                            Collect Fee
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              onViewReceipt({
+                                id: inv.id,
+                                student_name: studentData.name,
+                                student_id: studentData.id,
+                                grade: studentData.grade,
+                                amount: inv.amount,
+                                date: inv.dueDate,
+                                fee_type: inv.type,
+                              })
+                            }
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-[11px] transition"
+                          >
+                            Receipt
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -312,7 +422,7 @@ export const StudentDetailsPage: React.FC<StudentDetailsPageProps> = ({
               <h4 className="text-2xl font-black text-rose-600 mt-1">{attendanceStats.absent}</h4>
             </div>
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-              <span className="text-xs font-bold text-slate-400 uppercase">Late Marks</span>
+              <span className="text-xs font-bold text-slate-400 uppercase">Leaves / Late</span>
               <h4 className="text-2xl font-black text-amber-600 mt-1">{attendanceStats.late}</h4>
             </div>
           </div>
@@ -324,32 +434,40 @@ export const StudentDetailsPage: React.FC<StudentDetailsPageProps> = ({
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-slate-900 text-sm">Term 2 Academic Examination Report</h3>
-              <p className="text-xs text-slate-400">Cumulative Grade Point: 3.92 / 4.00 (Rank 1 in 10-A)</p>
+              <h3 className="font-bold text-slate-900 text-sm">Academic Examination Report</h3>
+              <p className="text-xs text-slate-400">Term and semester examination evaluations</p>
             </div>
           </div>
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-100">
               <tr>
                 <th className="px-6 py-3.5">Subject</th>
-                <th className="px-6 py-3.5">Score</th>
-                <th className="px-6 py-3.5">Grade</th>
-                <th className="px-6 py-3.5">Teacher Remarks</th>
+                <th className="px-6 py-3.5">Fee / Score</th>
+                <th className="px-6 py-3.5">Status</th>
+                <th className="px-6 py-3.5">Remarks</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {examResults.map((r, idx) => (
-                <tr key={idx} className="hover:bg-slate-50/80 transition">
-                  <td className="px-6 py-4 font-bold text-slate-900">{r.subject}</td>
-                  <td className="px-6 py-4 font-semibold text-slate-700">{r.marks}</td>
-                  <td className="px-6 py-4">
-                    <span className="px-2.5 py-0.5 rounded-md font-bold text-xs bg-blue-50 text-blue-700 border border-blue-100">
-                      {r.grade}
-                    </span>
+              {examResults.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                    No examination records found for this student.
                   </td>
-                  <td className="px-6 py-4 text-slate-500">{r.remarks}</td>
                 </tr>
-              ))}
+              ) : (
+                examResults.map((r, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50/80 transition">
+                    <td className="px-6 py-4 font-bold text-slate-900">{r.subject}</td>
+                    <td className="px-6 py-4 font-semibold text-slate-700">{r.marks}</td>
+                    <td className="px-6 py-4">
+                      <span className="px-2.5 py-0.5 rounded-md font-bold text-xs bg-blue-50 text-blue-700 border border-blue-100">
+                        {r.grade}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-slate-500">{r.remarks}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

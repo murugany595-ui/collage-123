@@ -1,133 +1,101 @@
-# College Management System
+# College Management & Finance ERP System
 
-Node.js + Express backend with an integrated high-speed in-memory store and interactive React frontend (admin, student, parent, and accountant portals). The application runs with zero external database dependencies.
+A production-ready College Management & Finance System built with **React**, **TypeScript**, **Tailwind CSS**, and **Firebase** (Firestore & Firebase Authentication). Supported by an Express backend for secure server-side payroll processing and an intelligent Gemini-powered AI Assistant.
 
-## 1. Setup
+---
+
+## 1. Architecture Overview
+
+- **Database**: Cloud Firestore is the sole database and single source of truth.
+  - No dummy data, mock files, or in-memory test stores.
+  - Clean empty states (`₹0.00`, "No records found") when collections have no records.
+- **Authentication**: Firebase Authentication (Email/Password & Role-Based Access Control).
+  - Four distinct user roles: `Admin`, `Accountant`, `Student`, and `Parent`.
+  - Strict role-based routing and permissions across all portals.
+- **Backend API & AI Assistant**: Express.js server (`server.js`) running on port 3000.
+  - Server-side Firebase ID Token verification via Google Identity Toolkit.
+  - Secure salary processing with duplicate payment prevention and Firestore audit logging.
+  - Context-aware multilingual AI Chatbot (English, Tamil, Tanglish) using Gemini API.
+
+---
+
+## 2. Getting Started
+
+### Prerequisites
+
+- Node.js (v18+)
+- npm or bun
+
+### Installation
 
 ```bash
 npm install
-npm run dev
 ```
 
-The system starts immediately with fully pre-seeded academic, student, fees, and accounting records.
+### Environment Configuration
 
-## 2. Demo accounts (password for all: `Password123!`)
+Create a `.env` file in the project root:
 
-| Role       | Email                          |
-|------------|---------------------------------|
-| admin      | admin@brightwood.edu            |
-| student    | ava.thompson@brightwood.edu     |
-| parent     | mark.t@mail.com                 |
-| accountant | accounts@brightwood.edu         |
+```env
+# Firebase Configuration
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=collage-28e7c.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=collage-28e7c
+VITE_FIREBASE_STORAGE_BUCKET=collage-28e7c.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+VITE_FIREBASE_APP_ID=your_firebase_app_id
 
-## 3. Auth flow
-
-Each login page in the UI (`app/login/admin`, `/login/student`,
-`/login/parent`, `/login/accountant`) posts to its matching endpoint:
-
-```
-POST /api/auth/login/admin        { email, password }
-POST /api/auth/login/student      { email, password }
-POST /api/auth/login/parent       { email, password }
-POST /api/auth/login/accountant   { email, password }
+# AI Chatbot & Backend
+GEMINI_API_KEY=your_gemini_api_key
+PORT=3000
 ```
 
-Response:
+### Running the Application
 
-```json
-{
-  "success": true,
-  "data": {
-    "token": "<jwt>",
-    "user": { "id": 1, "name": "...", "email": "...", "role": "admin" },
-    "profile": { "...role-specific row (student/parent/accountant only)" }
-  }
-}
-```
+1. **Frontend Development Server**:
+   ```bash
+   npm run dev
+   ```
 
-Store the token and send it as `Authorization: Bearer <token>` on every
-subsequent request. All `/api/admin/*`, `/api/student/*`, `/api/parent/*`
-and `/api/accountant/*` routes require it and are locked to that role.
+2. **Backend Server (Salary Processing & AI Assistant)**:
+   ```bash
+   npm run server
+   ```
 
-`GET /api/auth/me` — rehydrate the session (e.g. on page refresh).
-`POST /api/auth/logout` — no-op server-side (JWTs are stateless); just discard the token client-side.
+3. **Production Build**:
+   ```bash
+   npm run build
+   ```
 
-## 4. Route map (mirrors the `app/` folder structure)
+---
 
-Every response is wrapped as `{ success, data }` (or `{ success, message }`
-for errors/actions).
+## 3. User Roles & Portals
 
-### `/api/admin/*` (admin role)
-| Method | Route | Matches |
-|---|---|---|
-| GET | `/dashboard` | `app/admin/dashboard` — stat cards, revenue chart, class donut, recent students |
-| GET/POST | `/students` | `app/admin/students` |
-| GET/PUT/DELETE | `/students/:id` | |
-| GET/POST | `/teachers` | `app/admin/teachers` |
-| PUT/DELETE | `/teachers/:id` | |
-| GET/POST | `/parents` | `app/admin/parents` |
-| PUT/DELETE | `/parents/:id` | |
-| GET/POST | `/attendance` | `app/admin/attendance` |
-| GET | `/fees` | `app/admin/fees` |
-| GET | `/reports` | `app/admin/reports` |
-| GET | `/timetable` | `app/admin/timetable` |
-| GET/PUT | `/settings` | `app/admin/settings` |
-| GET | `/profile` | `app/admin/profile` |
+| Role | Access Level & Key Features |
+|---|---|
+| **Admin** | Full system control: Manage students, faculty, departments, fee structures, academic calendars, reports, and audit logs. |
+| **Accountant** | Financial management: Fee collection, invoice generation, expense tracking, salary payroll, payment approvals, and ledger reports. |
+| **Student** | Self-service portal: View enrolled courses, fee invoices, payment receipts, attendance percentage, and submit service requests. |
+| **Parent** | Student guardian view: Monitor student attendance, exam marks, fee dues, payment history, and submit fee extension requests. |
 
-### `/api/student/*` (student role — auto-scoped to the logged-in student)
-`/dashboard`, `/profile`, `/attendance`, `/fees`, `/assignments` (GET + PATCH
-status), `/exams`, `/results`, `/timetable`, `/notifications` (GET + PATCH
-`:id/read`) — one per `app/student/*` page.
+---
 
-### `/api/parent/*` (parent role — auto-scoped to the parent's linked child)
-`/dashboard`, `/child-details`, `/attendance`, `/fees`, `/results`,
-`/homework`, `/timetable`, `/notifications`, `/profile` — one per
-`app/parent/*` page.
+## 4. Key Collections (Firestore)
 
-### `/api/accountant/*` (accountant role)
-`/dashboard`, `/student-fees`, `/fee-collection` (GET + POST to record a
-payment — auto-creates a receipt and marks the invoice Paid), `/pending-fees`,
-`/income` (GET + POST), `/expenses` (GET + POST), `/reports`, `/receipts`,
-`/profile` — one per `app/accountant/*` page.
+- `users`: Core user accounts and assigned roles (`admin`, `accountant`, `student`, `parent`).
+- `students`: Comprehensive student profile records and departmental affiliations.
+- `staff`: Faculty and administrative staff directory.
+- `departments`: College departments, courses, and fee assignments.
+- `fees`: Student fee invoices, payment statuses, and transaction details.
+- `fee_settings`: Configurable fee categories and rates per department.
+- `adminExpenses`: College expense records (Staff salaries, electricity, infrastructure, etc.).
+- `requests`: Fee extension, leave, and attendance correction requests.
+- `auditLogs`: Immutable system audit trail for fee setting updates and financial transactions.
 
-## 5. Database
+---
 
-See `src/db/schema.sql` for the full table layout and `src/db/seed.sql`
-for demo data — both translated directly from `lib/mock-data.ts` field
-names (`id`, `name`, `grade`, `status`, `due`, `amount`, etc.) so the JSON
-the API returns matches what the UI components already expect.
+## 5. Security & Verification
 
-The mock store starts pre-seeded with full operational data and the four demo login users (bcrypt-hashed), linking each to its student/parent/accountant records.
-
-## 6. Project layout
-
-```
-server.js                  entrypoint
-src/
-  app.js                   Express app + route mounting
-  config/
-    db.js                  Database facade pointing to mockStore
-    mockStore.js           In-memory operational store & query engine
-  middleware/auth.js       JWT verification + role guard
-  middleware/errorHandler.js
-  utils/jwt.js             sign/verify helpers
-  utils/generateId.js      sequential IDs like STU-1050, INV-8846
-  routes/
-    auth.routes.js
-    admin.routes.js
-    student.routes.js
-    parent.routes.js
-    accountant.routes.js
-    database.routes.js
-```
-
-## 7. Notes / next steps
-
-- Currency fields (`amount`, `balance`, `total`, `paid`) are formatted as
-  `"$1,250"` strings server-side to match the mock data exactly — if you'd
-  rather format on the client, drop the `CONCAT('$', FORMAT(...))` wrapping
-  in the SQL and return raw `DECIMAL` values instead.
-- `assignments`, `results`, and `homework` are seeded only for the demo
-  student (`STU-1042`) — add rows for other students as needed.
-- Add a `settings` table if you want `/api/admin/settings` to persist
-  rather than echo back what's posted.
+- **Zero Mock Data**: All data displayed in dashboards, tables, and summaries comes directly from Firestore.
+- **Strict Role Authorization**: Non-authorized roles cannot access administrative endpoints or settings.
+- **Duplicate Prevention**: Automated checks prevent double payments for payroll and student fees.

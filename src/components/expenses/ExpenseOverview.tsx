@@ -72,8 +72,8 @@ export const ExpenseOverview: React.FC<ExpenseOverviewProps> = ({
   onOpenAddExpense,
   onOpenMonthlyReport,
 }) => {
-  const totalFees = financialOverview?.totalFeesCollected || 650000;
-  const totalExpenses = summary?.totalExpenses || financialOverview?.totalExpenses || 410000;
+  const totalFees = financialOverview?.totalFeesCollected || 0;
+  const totalExpenses = summary?.totalExpenses || financialOverview?.totalExpenses || 0;
   const netBalance = totalFees - totalExpenses;
   const isSurplus = netBalance >= 0;
 
@@ -92,16 +92,7 @@ export const ExpenseOverview: React.FC<ExpenseOverviewProps> = ({
   })).filter((d) => d.value > 0);
 
   // Prepare Trend Data for comparison
-  const trendData = financialOverview?.monthlyTrends || [
-    { month: "Jan", income: 85000, expenses: 45000, balance: 40000 },
-    { month: "Feb", income: 72000, expenses: 48000, balance: 24000 },
-    { month: "Mar", income: 91000, expenses: 52000, balance: 39000 },
-    { month: "Apr", income: 64000, expenses: 49000, balance: 15000 },
-    { month: "May", income: 58000, expenses: 44000, balance: 14000 },
-    { month: "Jun", income: 78000, expenses: 51000, balance: 27000 },
-    { month: "Jul", income: 84000, expenses: 53000, balance: 31000 },
-    { month: "Aug", income: 95000, expenses: 56000, balance: 39000 },
-  ];
+  const trendData = financialOverview?.monthlyTrends || [];
 
   return (
     <div className="space-y-6">
@@ -436,7 +427,7 @@ export const ExpenseOverview: React.FC<ExpenseOverviewProps> = ({
                 <p>No historical monthly expenses logged in Firestore.</p>
               </div>
             )
-          ) : (
+          ) : trendData.length > 0 ? (
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -462,6 +453,11 @@ export const ExpenseOverview: React.FC<ExpenseOverviewProps> = ({
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          ) : (
+            <div className="h-72 flex flex-col items-center justify-center text-slate-400 text-xs">
+              <Calendar className="w-8 h-8 text-slate-300 mb-2" />
+              <p>No monthly cashflow trends recorded in Firestore.</p>
+            </div>
           )}
         </div>
 
@@ -475,41 +471,48 @@ export const ExpenseOverview: React.FC<ExpenseOverviewProps> = ({
             <p className="text-xs text-slate-500">Distribution across approved expense heads</p>
           </div>
 
-          <div className="h-56 w-full relative flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={80}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: any) => [`₹${Number(value).toLocaleString("en-IN")}`, ""]}
-                  contentStyle={{
-                    backgroundColor: "#0F172A",
-                    borderColor: "#334155",
-                    borderRadius: "12px",
-                    color: "#FFF",
-                    fontSize: "12px",
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute text-center pointer-events-none">
-              <span className="text-xs font-semibold text-slate-400 block">Total</span>
-              <span className="text-sm font-black text-slate-900">
-                ₹{(totalExpenses / 1000).toFixed(0)}k
-              </span>
+          {pieData.length > 0 ? (
+            <div className="h-56 w-full relative flex items-center justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={80}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: any) => [`₹${Number(value).toLocaleString("en-IN")}`, ""]}
+                    contentStyle={{
+                      backgroundColor: "#0F172A",
+                      borderColor: "#334155",
+                      borderRadius: "12px",
+                      color: "#FFF",
+                      fontSize: "12px",
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute text-center pointer-events-none">
+                <span className="text-xs font-semibold text-slate-400 block">Total</span>
+                <span className="text-sm font-black text-slate-900">
+                  ₹{(totalExpenses / 1000).toFixed(0)}k
+                </span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="h-56 flex flex-col items-center justify-center text-slate-400 text-xs">
+              <PieIcon className="w-8 h-8 text-slate-300 mb-2" />
+              <p>No categorized expenses recorded yet.</p>
+            </div>
+          )}
 
           {/* Mini Legend List */}
           <div className="mt-auto pt-3 border-t border-slate-100 max-h-40 overflow-y-auto space-y-1.5 scrollbar-thin text-xs">

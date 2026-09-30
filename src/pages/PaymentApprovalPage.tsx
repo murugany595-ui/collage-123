@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   CheckSquare,
   CheckCircle2,
@@ -12,6 +12,24 @@ import {
   Building,
   Eye,
 } from "lucide-react";
+import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { db } from "../config/firebase";
+import { requestService } from "../services/firebase/requestService";
+import { feesService } from "../services/firebase/feesService";
+
+export interface PaymentApprovalItem {
+  id: string;
+  student: string;
+  student_id?: string;
+  grade?: string;
+  amount: number;
+  method: string;
+  date: string;
+  ref: string;
+  status: "Pending" | "Approved" | "Rejected";
+  departmentId?: string;
+  feeId?: string;
+}
 
 export interface PaymentApprovalPageProps {
   onShowToast?: (msg: string, type: "success" | "error" | "info") => void;
@@ -22,28 +40,125 @@ export const PaymentApprovalPage: React.FC<PaymentApprovalPageProps> = ({
   onShowToast = () => {},
   onViewReceipt = () => {},
 }) => {
-  const [approvals, setApprovals] = useState([
-    { id: "TXN-8801", student: "Ava Thompson", student_id: "STU-1042", grade: "10-A", amount: 1250, method: "UPI / QR", date: "Today, 10:14 AM", ref: "UPI-Ref-9920148", status: "Pending" },
-    { id: "TXN-8802", student: "Noah Patel", student_id: "STU-1043", grade: "9-B", amount: 1100, method: "Bank Transfer", date: "Today, 09:30 AM", ref: "Wire-HDFC-00129", status: "Pending" },
-    { id: "TXN-8803", student: "Liam Chen", student_id: "STU-1044", grade: "10-A", amount: 625, method: "Online Card", date: "Yesterday, 04:20 PM", ref: "STRIPE-CH-88219", status: "Pending" },
-    { id: "TXN-8804", student: "Emma Wilson", student_id: "STU-1045", grade: "8-C", amount: 980, method: "Net Banking", date: "Yesterday, 02:15 PM", ref: "IMPS-Ref-44910", status: "Pending" },
-    { id: "TXN-8805", student: "Lucas Miller", student_id: "STU-1047", grade: "9-A", amount: 1250, method: "UPI / QR", date: "Jul 23, 2026", ref: "UPI-Ref-104921", status: "Pending" },
-  ]);
-
+  const [approvals, setApprovals] = useState<PaymentApprovalItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [verifiedTodayCount, setVerifiedTodayCount] = useState(0);
+  const [verifiedTodayAmount, setVerifiedTodayAmount] = useState(0);
 
-  const handleApprove = (id: string, studentName: string) => {
-    setApprovals((prev) => prev.filter((item) => item.id !== id));
-    onShowToast(`Payment ${id} for ${studentName} approved and official receipt dispatched!`, "success");
+  useEffect(() => {
+    loadApprovals();
+  }, []);
+
+  const loadApprovals = async () => {
+    try {
+      setLoading(true);
+      const items: PaymentApprovalItem[] = [];
+
+      // 1. Fetch from payment_approvals collection
+      const snap = await getDocs(collection(db, "payment_approvals")).catch(() => null);
+      if (snap && !snap.empty) {
+        snap.forEach((d) => {
+          items.push({ id: d.id, ...(d.data() as any) });
+        });
+      }
+
+      // 2. Fetch from requests collection where category is payment_issue
+      const requests = await requestService.getAllRequests().catch(() => []);
+      for (const req of requests) {
+        if (req.category === "payment_issue" && !items.some((i) => i.id === req.id)) {
+          items.push({
+            id: req.id,
+            student: req.studentName || "Student",
+            student_id: req.studentId || req.userId,
+            grade: req.department || req.year || "N/A",
+            amount: Number(req.amount) || 0,
+            method: "Online Transfer",
+            date: req.paymentDate || req.createdAt ? new Date(req.createdAt).toLocaleDateString() : "Recent",
+            ref: req.paymentReference || req.id,
+            status: req.status === "Approved" ? "Approved" : req.status === "Rejected" ? "Rejected" : "Pending",
+          });
+        }
+      }
+
+      const todayStr = new Date().toISOString().split("T")[0];
+      const approvedToday = items.filter(
+        (a) => a.status === "Approved" && (a.date.includes(todayStr) || a.date.includes("Today"))
+      );
+      setVerifiedTodayCount(approvedToday.length);
+      setVerifiedTodayAmount(approvedToday.reduce((acc, a) => acc + (a.amount || 0), 0));
+
+      setApprovals(items);
+    } catch (err) {
+      console.error("Error loading approvals:", err);
+      setApprovals([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReject = (id: string, studentName: string) => {
-    setApprovals((prev) => prev.filter((item) => item.id !== id));
-    onShowToast(`Payment ${id} for ${studentName} was rejected/flagged for review.`, "info");
+  const handleApprove = async (id: string, studentName: string) => {
+    try {
+      const item = approvals.find((a) => a.id === id);
+      if (item?.departmentId && item?.feeId) {
+        await feesService.collectFeePayment({
+          departmentId: item.departmentId,
+          feeId: item.feeId,
+          amount: item.amount,
+          method: item.method || "Online",
+          referenceNote: `Approved online payment: ${item.ref}`,
+        });
+      }
+
+      // Try updating in payment_approvals or requests
+      try {
+        await updateDoc(doc(db, "payment_approvals", id), {
+          status: "Approved",
+          approvedAt: new Date().toISOString(),
+        });
+      } catch {
+        await requestService.updateRequestStatus(id, { status: "Approved" }).catch(() => {});
+      }
+
+      setApprovals((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status: "Approved" } : a))
+      );
+      setVerifiedTodayCount((prev) => prev + 1);
+      setVerifiedTodayAmount((prev) => prev + (item?.amount || 0));
+      onShowToast(`Payment ${id} for ${studentName} approved and official receipt dispatched!`, "success");
+    } catch (err: any) {
+      console.error("Failed to approve payment:", err);
+      onShowToast(err.message || "Failed to approve payment", "error");
+    }
   };
 
-  const filtered = approvals.filter((a) =>
-    a.student.toLowerCase().includes(search.toLowerCase()) || a.id.toLowerCase().includes(search.toLowerCase())
+  const handleReject = async (id: string, studentName: string) => {
+    try {
+      try {
+        await updateDoc(doc(db, "payment_approvals", id), {
+          status: "Rejected",
+          rejectedAt: new Date().toISOString(),
+        });
+      } catch {
+        await requestService.updateRequestStatus(id, { status: "Rejected" }).catch(() => {});
+      }
+
+      setApprovals((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status: "Rejected" } : a))
+      );
+      onShowToast(`Payment ${id} for ${studentName} was rejected/flagged for review.`, "info");
+    } catch (err: any) {
+      console.error("Failed to reject payment:", err);
+      onShowToast(err.message || "Failed to reject payment", "error");
+    }
+  };
+
+  const pendingApprovals = approvals.filter((a) => a.status === "Pending");
+  const filtered = pendingApprovals.filter(
+    (a) =>
+      a.student.toLowerCase().includes(search.toLowerCase()) ||
+      a.id.toLowerCase().includes(search.toLowerCase()) ||
+      a.ref.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -52,20 +167,22 @@ export const PaymentApprovalPage: React.FC<PaymentApprovalPageProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-500 uppercase">Pending Verification</span>
-          <h3 className="text-2xl font-black text-amber-600 mt-1">{approvals.length} Transactions</h3>
+          <h3 className="text-2xl font-black text-amber-600 mt-1">{pendingApprovals.length} Transactions</h3>
           <p className="text-xs text-slate-400 mt-1">Direct parent online submissions</p>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-500 uppercase">Queue Value</span>
           <h3 className="text-2xl font-black text-blue-600 mt-1">
-            ₹{approvals.reduce((a, b) => a + b.amount, 0).toLocaleString()}.00
+            ₹{pendingApprovals.reduce((a, b) => a + (b.amount || 0), 0).toLocaleString()}.00
           </h3>
           <p className="text-xs text-slate-400 mt-1">Pending ledger balance credit</p>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-500 uppercase">Verified Today</span>
-          <h3 className="text-2xl font-black text-emerald-600 mt-1">₹32,100.00</h3>
-          <p className="text-xs text-slate-400 mt-1">28 approved transactions</p>
+          <h3 className="text-2xl font-black text-emerald-600 mt-1">
+            ₹{verifiedTodayAmount.toLocaleString()}.00
+          </h3>
+          <p className="text-xs text-slate-400 mt-1">{verifiedTodayCount} approved transactions</p>
         </div>
       </div>
 
@@ -102,10 +219,16 @@ export const PaymentApprovalPage: React.FC<PaymentApprovalPageProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.length === 0 ? (
+              {loading ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
-                    All payment submissions have been approved and reconciled!
+                    Loading payment approvals queue...
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                    No pending payment approvals found. All transactions are reconciled.
                   </td>
                 </tr>
               ) : (

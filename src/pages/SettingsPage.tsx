@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
-import { FeeCategory, DEFAULT_FEE_CATEGORIES, feesService } from "../services/firebase/feesService";
+import { FeeCategory, feesService } from "../services/firebase/feesService";
 import { AuditLogsViewer } from "../components/admin/AuditLogsViewer";
 
 export interface SettingsPageProps {
@@ -45,7 +45,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [currency, setCurrency] = useState("INR (₹)");
   const [invoicePrefix, setInvoicePrefix] = useState("INV-2026-");
   const [address, setAddress] = useState("104 University Ave, Campus North");
-  const [email, setEmail] = useState("admin@brightwood.edu");
+  const [email, setEmail] = useState("admin@college.edu");
   const [phone, setPhone] = useState("+91 44 2855 0199");
 
   // In-Memory / Database status
@@ -53,7 +53,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fees Settings State (Admin Only)
-  const [feeCategories, setFeeCategories] = useState<FeeCategory[]>(DEFAULT_FEE_CATEGORIES);
+  const [feeCategories, setFeeCategories] = useState<FeeCategory[]>([]);
   const [feesLoading, setFeesLoading] = useState(true);
   const [savingFees, setSavingFees] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
@@ -75,10 +75,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   });
 
   // Strict Security Check: Verify user is an authenticated Administrator
-  const isUserAdmin =
-    user?.role === "admin" ||
-    user?.email === "admin@brightwood.edu" ||
-    Boolean(user?.email?.includes("admin"));
+  const isUserAdmin = user?.role === "admin";
 
   // Fetch Fee Categories from Firebase on Mount
   useEffect(() => {
@@ -90,14 +87,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     try {
       setFeesLoading(true);
       const res = await api.fees.getCategories();
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res.success && Array.isArray(res.data)) {
         setFeeCategories(res.data);
       } else {
-        setFeeCategories(DEFAULT_FEE_CATEGORIES);
+        setFeeCategories([]);
       }
     } catch (err: any) {
       console.warn("Could not load fee categories:", err);
-      setFeeCategories(DEFAULT_FEE_CATEGORIES);
+      setFeeCategories([]);
     } finally {
       setFeesLoading(false);
     }
@@ -136,12 +133,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         return c;
       })
     );
-  };
-
-  // Reset to Default Amounts
-  const handleResetDefaults = () => {
-    setFeeCategories(DEFAULT_FEE_CATEGORIES);
-    onShowToast("Fee amounts reset to standard project defaults. Click 'Save Fee Structure' to persist.", "info");
   };
 
   // Save Single Fee Setting to Firebase
@@ -370,15 +361,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleResetDefaults}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition"
-                  title="Reset inputs to project default amounts"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Defaults</span>
-                </button>
                 <button
                   type="button"
                   onClick={() => handleSaveAllFees()}

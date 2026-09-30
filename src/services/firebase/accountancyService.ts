@@ -50,7 +50,7 @@ export const accountancyService = {
         };
       });
 
-      // 2. Migration/fallback: If accountancy collection is empty, populate from users collection or defaults
+      // 2. Fallback: If dedicated collection is empty, check if accountants exist in 'users' collection
       if (list.length === 0) {
         try {
           const qUsers = query(collection(db, "users"), where("role", "==", "accountant"));
@@ -63,46 +63,23 @@ export const accountancyService = {
             const record: AccountancyUser = {
               id: accId,
               accountancyId: accId,
-              name: uData.name || "Finance Officer",
+              name: uData.name || "Accountant",
               email: uData.email || "",
               role: "accountant",
               department: uData.department || "Finance & Accounts",
-              phone: uData.phone || "+91 98401 11223",
+              phone: uData.phone || "",
               status: uData.status || "Active",
               createdAt: uData.createdAt || now,
               updatedAt: now,
             };
-            await setDoc(doc(db, "accountancy", accId), record);
             migrated.push(record);
           }
 
           if (migrated.length > 0) {
             list = migrated;
-          } else {
-            // Seed initial accountancy record controlled by Admin
-            const now = new Date().toISOString();
-            const defaultAcc: AccountancyUser = {
-              id: "ACC-101",
-              accountancyId: "ACC-101",
-              name: "Rita Álvarez",
-              email: "bursar@brightwood.edu",
-              role: "accountant",
-              department: "Finance & Accounts",
-              phone: "+91 98401 11223",
-              status: "Active",
-              createdAt: now,
-              updatedAt: now,
-            };
-            await setDoc(doc(db, "accountancy", "ACC-101"), defaultAcc);
-            // Also ensure in users collection for authentication
-            await setDoc(doc(db, "users", "ACC-101"), {
-              uid: "ACC-101",
-              ...defaultAcc,
-            }, { merge: true });
-            list = [defaultAcc];
           }
         } catch (migErr) {
-          console.warn("Could not check/migrate existing accountancy users:", migErr);
+          console.warn("Could not check existing accountancy users:", migErr);
         }
       }
 
@@ -124,13 +101,16 @@ export const accountancyService = {
   },
 
   async createAccountant(data: Partial<AccountancyUser> & { password?: string }): Promise<string> {
+    if (!data.email) {
+      throw new Error("Email is required for creating an accountant account");
+    }
     const accountancyId = data.accountancyId || `ACC-${Date.now().toString().slice(-5)}`;
     const now = new Date().toISOString();
     const payload: AccountancyUser = {
       id: accountancyId,
       accountancyId,
       name: data.name || "Accountant",
-      email: data.email || `bursar.${accountancyId}@brightwood.edu`,
+      email: data.email.trim().toLowerCase(),
       role: "accountant",
       department: data.department || "Finance & Accounts",
       phone: data.phone || "",
@@ -148,13 +128,11 @@ export const accountancyService = {
       ...payload,
     }, { merge: true });
 
-    // 3. If password provided or default, attempt to provision Firebase Auth account
-    if (payload.email) {
+    // 3. If password provided, attempt to provision Firebase Auth account
+    if (payload.email && data.password) {
       try {
-        const passwordToUse = data.password || "Accountant@123";
-        await createUserWithEmailAndPassword(auth, payload.email.trim().toLowerCase(), passwordToUse).catch(() => {});
+        await createUserWithEmailAndPassword(auth, payload.email, data.password).catch(() => {});
       } catch (authErr) {
-        // May already exist in Firebase Auth
         console.warn("Accountancy user auth provisioning notice:", authErr);
       }
     }

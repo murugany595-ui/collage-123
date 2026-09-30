@@ -41,15 +41,16 @@ export interface AuthResponse {
   message?: string;
 }
 
-// In-memory fee categories cache with initial defaults
-let feeCategoriesStore: FeeCategory[] = [...DEFAULT_FEE_CATEGORIES];
+// In-memory fee categories cache
+let feeCategoriesStore: FeeCategory[] = [];
 
 export const api = {
   // Authentication
   auth: {
     login: async (roleOrEmail: string, body?: { email: string; password?: string }): Promise<AuthResponse> => {
       const email = body?.email || roleOrEmail;
-      const pwd = body?.password || "College@123";
+      const pwd = body?.password;
+      if (!pwd) throw new Error("Password is required");
       const session = await authService.login(email, pwd);
       return {
         success: true,
@@ -384,25 +385,24 @@ export const api = {
 
       const [fees, attendance, exams] = await Promise.all([
         feesService.getFeesByDepartment(dept).catch(() => []),
-        attendanceService.getAttendanceByDepartment(dept).catch(() => []),
+        attendanceService.getAttendanceByDepartment(dept, { studentId: uid }).catch(() => []),
         examService.getExamsByDepartment(dept).catch(() => []),
       ]);
 
-      const myFees = fees.filter((f) => f.studentId === uid || f.studentName === profile?.name);
-      const totalDue = myFees.filter((f) => f.paymentStatus !== "Paid").reduce((acc, f) => acc + (f.balance || f.amount || 0), 0);
+      const myFees = fees.filter((f) => f.studentId === uid || (profile?.name && f.studentName === profile.name));
+      const totalDue = myFees.filter((f) => f.paymentStatus !== "Paid").reduce((acc, f) => acc + (f.balance || (f.amount - (f.paidAmount || 0)) || 0), 0);
+      const studentAttendance = attendance.filter((a) => a.studentId === uid || (profile?.name && a.studentName === profile.name));
+      const attendanceRate = studentAttendance.length > 0
+        ? Math.round((studentAttendance.filter((a) => a.status === "Present").length / studentAttendance.length) * 100)
+        : 0;
 
       return {
         success: true,
         data: {
-          student: profile || {
-            name: "Ava Thompson",
-            rollNo: "CSE-501",
-            department: dept,
-            year: "3rd Year",
-          },
+          student: profile || null,
           totalDue,
           invoicesCount: myFees.length,
-          attendanceRate: 94,
+          attendanceRate,
           upcomingExamsCount: exams.length,
         },
       };
@@ -816,10 +816,8 @@ export const api = {
     getCategories: async () => {
       try {
         const remote = await feesService.getFeeSettings();
-        if (remote && remote.length > 0) {
-          feeCategoriesStore = remote;
-          return { success: true, data: remote };
-        }
+        feeCategoriesStore = remote || [];
+        return { success: true, data: feeCategoriesStore };
       } catch (err) {
         console.warn("Could not fetch fee settings from Firebase:", err);
       }
@@ -878,6 +876,7 @@ export const api = {
       if (!isRoleAdmin) {
         throw new Error("Forbidden: Only Administrator has permission to remove fee categories.");
       }
+      await feesService.deleteFeeCategory(String(id), userRole);
       feeCategoriesStore = feeCategoriesStore.filter((c) => String(c.id) !== String(id));
       return { success: true, message: "Fee category deleted" };
     },
@@ -1291,6 +1290,22 @@ export const api = {
     getAll: async () => {
       const list = await studentService.getAllStudents();
       return { success: true, data: list };
+    },
+  },
+
+  // Users management
+  users: {
+    getAll: async () => {
+      const users = await userService.getAllUsers();
+      return { success: true, data: users };
+    },
+    create: async (user: any) => {
+      await userService.createUserProfile(user);
+      return { success: true, message: "User account created" };
+    },
+    delete: async (uid: string) => {
+      await userService.deleteUser(uid);
+      return { success: true, message: "User account deleted" };
     },
   },
 };

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   GraduationCap,
   BookOpen,
@@ -10,28 +10,77 @@ import {
   Calendar,
   CheckCircle2,
 } from "lucide-react";
+import { departmentService, Department } from "../services/firebase/departmentService";
+import { studentService, Student } from "../services/firebase/studentService";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../config/firebase";
 
 export interface AcademicInfoPageProps {
   onShowToast?: (msg: string, type: "success" | "error" | "info") => void;
 }
 
-export const AcademicInfoPage: React.FC<AcademicInfoPageProps> = ({ onShowToast = () => {} }) => {
-  const [classes, setClasses] = useState([
-    { id: "CLS-CSE5A", grade: "B.Tech CSE", section: "Sem 5 - Sec A", teacher: "Prof. Alan Turing", students: 64, capacity: 70, room: "Lab Block C-301" },
-    { id: "CLS-CSE5B", grade: "B.Tech CSE", section: "Sem 5 - Sec B", teacher: "Dr. Marcus Reed", students: 60, capacity: 70, room: "Lab Block C-302" },
-    { id: "CLS-ECE3A", grade: "B.Tech ECE", section: "Sem 3 - Sec A", teacher: "Dr. Elena Rostova", students: 58, capacity: 65, room: "Turing Hall 201" },
-    { id: "CLS-MECH7A", grade: "B.Tech MECH", section: "Sem 7 - Sec A", teacher: "Prof. Robert Garcia", students: 52, capacity: 60, room: "Newton Workshop 105" },
-    { id: "CLS-MBA1A", grade: "MBA Finance", section: "Sem 1 - Sec A", teacher: "Ms. Sarah Jenkins", students: 48, capacity: 55, room: "Business Wing 101" },
-    { id: "CLS-BSC1A", grade: "B.Sc Data Science", section: "Sem 1 - Sec A", teacher: "Mr. David Kim", students: 50, capacity: 60, room: "Lecture Hall 4" },
-  ]);
+export interface AcademicClass {
+  id: string;
+  grade: string;
+  section: string;
+  teacher: string;
+  students: number;
+  capacity: number;
+  room: string;
+}
 
-  const subjects = [
-    { code: "CS-501", name: "Distributed Systems & Cloud Computing", faculty: "Prof. Alan Turing", classes: "B.Tech CSE Sem 5", credits: 4 },
-    { code: "CS-502", name: "Database Internals & Big Data Analytics", faculty: "Dr. Marcus Reed", classes: "B.Tech CSE Sem 5", credits: 4 },
-    { code: "EC-301", name: "Signals, Systems & Digital Processing", faculty: "Dr. Elena Rostova", classes: "B.Tech ECE Sem 3", credits: 4 },
-    { code: "MBA-102", name: "Corporate Financial Analysis & Valuation", faculty: "Ms. Sarah Jenkins", classes: "MBA Sem 1", credits: 3 },
-    { code: "DS-101", name: "Statistical Machine Learning & Python", faculty: "Mr. David Kim", classes: "B.Sc DS Sem 1", credits: 4 },
-  ];
+export interface AcademicSubject {
+  code: string;
+  name: string;
+  faculty: string;
+  classes: string;
+  credits: number;
+}
+
+export const AcademicInfoPage: React.FC<AcademicInfoPageProps> = ({ onShowToast = () => {} }) => {
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [classes, setClasses] = useState<AcademicClass[]>([]);
+  const [subjects, setSubjects] = useState<AcademicSubject[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadAcademicData = async () => {
+      try {
+        setLoading(true);
+        const [deptList, studentList] = await Promise.all([
+          departmentService.getDepartments().catch(() => []),
+          studentService.getAllStudents().catch(() => []),
+        ]);
+        setDepartments(deptList);
+        setStudents(studentList);
+
+        // Fetch configured batches and subjects if any exist in Firestore
+        const [classesSnap, subjectsSnap] = await Promise.all([
+          getDocs(collection(db, "academic_classes")).catch(() => null),
+          getDocs(collection(db, "academic_subjects")).catch(() => null),
+        ]);
+
+        if (classesSnap && !classesSnap.empty) {
+          setClasses(classesSnap.docs.map(d => ({ id: d.id, ...d.data() } as AcademicClass)));
+        } else {
+          setClasses([]);
+        }
+
+        if (subjectsSnap && !subjectsSnap.empty) {
+          setSubjects(subjectsSnap.docs.map(d => ({ ...d.data() } as AcademicSubject)));
+        } else {
+          setSubjects([]);
+        }
+      } catch (err) {
+        console.error("Failed to load academic data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAcademicData();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -39,23 +88,23 @@ export const AcademicInfoPage: React.FC<AcademicInfoPageProps> = ({ onShowToast 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-400 uppercase">Total Departments</span>
-          <h3 className="text-2xl font-black text-blue-600 mt-1">6 Departments</h3>
+          <h3 className="text-2xl font-black text-blue-600 mt-1">{departments.length} Departments</h3>
           <p className="text-xs text-slate-400 mt-1">Undergrad & Postgrad Programs</p>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-400 uppercase">Active Batches</span>
-          <h3 className="text-2xl font-black text-emerald-600 mt-1">32 Semesters</h3>
-          <p className="text-xs text-slate-400 mt-1">Total Campus Capacity: 2,800</p>
+          <h3 className="text-2xl font-black text-emerald-600 mt-1">{classes.length} Batches</h3>
+          <p className="text-xs text-slate-400 mt-1">Configured Academic Sections</p>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-400 uppercase">Degree Courses</span>
-          <h3 className="text-2xl font-black text-purple-600 mt-1">48 Modules</h3>
-          <p className="text-xs text-slate-400 mt-1">Engineering, Science & Management</p>
+          <h3 className="text-2xl font-black text-purple-600 mt-1">{subjects.length} Modules</h3>
+          <p className="text-xs text-slate-400 mt-1">Course & Subject Catalog</p>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-bold text-slate-400 uppercase">Academic Session</span>
-          <h3 className="text-2xl font-black text-slate-900 mt-1">2025-2026</h3>
-          <p className="text-xs text-slate-400 mt-1">Active Autumn Semester</p>
+          <span className="text-xs font-bold text-slate-400 uppercase">Total Students</span>
+          <h3 className="text-2xl font-black text-slate-900 mt-1">{students.length} Enrolled</h3>
+          <p className="text-xs text-slate-400 mt-1">Active Registered Students</p>
         </div>
       </div>
 
@@ -87,38 +136,55 @@ export const AcademicInfoPage: React.FC<AcademicInfoPageProps> = ({ onShowToast 
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {classes.map((cls) => (
-                <tr key={cls.id} className="hover:bg-slate-50/80 transition">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-0.5 rounded-lg bg-blue-50 text-blue-700 font-bold border border-blue-100">
-                        {cls.grade} • {cls.section}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 font-bold text-slate-800">{cls.teacher}</td>
-                  <td className="px-6 py-4 font-semibold text-slate-900">{cls.students} Enrolled</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-blue-600 rounded-full"
-                          style={{ width: `${(cls.students / cls.capacity) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-[10px] font-bold text-slate-600">
-                        {Math.round((cls.students / cls.capacity) * 100)}%
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 font-medium text-slate-600">{cls.room}</td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
+                    Loading academic batches...
                   </td>
                 </tr>
-              ))}
+              ) : classes.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
+                    No department batches configured yet. Click "+ Add New Batch" to configure.
+                  </td>
+                </tr>
+              ) : (
+                classes.map((cls) => {
+                  const capacityPct = cls.capacity > 0 ? Math.round((cls.students / cls.capacity) * 100) : 0;
+                  return (
+                    <tr key={cls.id} className="hover:bg-slate-50/80 transition">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded-lg bg-blue-50 text-blue-700 font-bold border border-blue-100">
+                            {cls.grade} • {cls.section}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-slate-800">{cls.teacher}</td>
+                      <td className="px-6 py-4 font-semibold text-slate-900">{cls.students} Enrolled</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-600 rounded-full"
+                              style={{ width: `${Math.min(capacityPct, 100)}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-600">
+                            {capacityPct}%
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 font-medium text-slate-600">{cls.room}</td>
+                      <td className="px-6 py-4 text-right">
+                        <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -145,15 +211,29 @@ export const AcademicInfoPage: React.FC<AcademicInfoPageProps> = ({ onShowToast 
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {subjects.map((sub) => (
-                <tr key={sub.code} className="hover:bg-slate-50/80 transition">
-                  <td className="px-6 py-4 font-mono font-bold text-blue-700">{sub.code}</td>
-                  <td className="px-6 py-4 font-bold text-slate-900">{sub.name}</td>
-                  <td className="px-6 py-4 text-slate-700 font-medium">{sub.faculty}</td>
-                  <td className="px-6 py-4 text-slate-500">{sub.classes}</td>
-                  <td className="px-6 py-4 font-bold text-slate-800">{sub.credits} Credits</td>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
+                    Loading course catalog...
+                  </td>
                 </tr>
-              ))}
+              ) : subjects.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
+                    No subjects found in the course catalog.
+                  </td>
+                </tr>
+              ) : (
+                subjects.map((sub) => (
+                  <tr key={sub.code} className="hover:bg-slate-50/80 transition">
+                    <td className="px-6 py-4 font-mono font-bold text-blue-700">{sub.code}</td>
+                    <td className="px-6 py-4 font-bold text-slate-900">{sub.name}</td>
+                    <td className="px-6 py-4 text-slate-700 font-medium">{sub.faculty}</td>
+                    <td className="px-6 py-4 text-slate-500">{sub.classes}</td>
+                    <td className="px-6 py-4 font-bold text-slate-800">{sub.credits} Credits</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

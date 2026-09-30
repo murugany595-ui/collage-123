@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
-import { FeeCategory, DEFAULT_FEE_CATEGORIES } from "../services/firebase/feesService";
+import { FeeCategory } from "../services/firebase/feesService";
 
 export interface FeeCategoriesPageProps {
   onShowToast?: (msg: string, type: "success" | "error" | "info") => void;
@@ -29,16 +29,13 @@ export const FeeCategoriesPage: React.FC<FeeCategoriesPageProps> = ({
   onNavigate = () => {},
 }) => {
   const { user } = useAuth();
-  const [categories, setCategories] = useState<FeeCategory[]>(DEFAULT_FEE_CATEGORIES);
+  const [categories, setCategories] = useState<FeeCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState<number>(0);
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  const isUserAdmin =
-    user?.role === "admin" ||
-    user?.email === "admin@brightwood.edu" ||
-    Boolean(user?.email?.includes("admin"));
+  const isUserAdmin = user?.role === "admin";
 
   useEffect(() => {
     loadCategories();
@@ -48,13 +45,13 @@ export const FeeCategoriesPage: React.FC<FeeCategoriesPageProps> = ({
     try {
       setLoading(true);
       const res = await api.fees.getCategories();
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res.success && Array.isArray(res.data)) {
         setCategories(res.data);
       } else {
-        setCategories(DEFAULT_FEE_CATEGORIES);
+        setCategories([]);
       }
     } catch {
-      setCategories(DEFAULT_FEE_CATEGORIES);
+      setCategories([]);
     } finally {
       setLoading(false);
     }
@@ -146,6 +143,13 @@ export const FeeCategoriesPage: React.FC<FeeCategoriesPageProps> = ({
         <div className="p-12 text-center text-slate-400">
           <RefreshCw className="w-6 h-6 animate-spin mx-auto text-blue-600 mb-2" />
           <p className="text-xs">Loading fee structures from Firebase...</p>
+        </div>
+      ) : categories.length === 0 ? (
+        <div className="bg-white p-12 text-center rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
+          <p className="text-sm font-bold text-slate-700">No Fee Categories Configured</p>
+          <p className="text-xs text-slate-400">
+            No institutional fee categories found in Firestore. Click "Manage in Fee Settings" above to create fee categories.
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-5">

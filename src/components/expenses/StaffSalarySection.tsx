@@ -47,14 +47,16 @@ export const StaffSalarySection: React.FC<StaffSalarySectionProps> = ({
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedDepartment, setSelectedDepartment] = useState("All");
 
+  const [realStaff, setRealStaff] = useState<any[]>([]);
+
   // Form State
   const [staffName, setStaffName] = useState("");
   const [staffId, setStaffId] = useState("");
-  const [designation, setDesignation] = useState("Associate Professor");
-  const [department, setDepartment] = useState("Computer Science & Engineering");
-  const [basicSalary, setBasicSalary] = useState<string>("60000");
-  const [allowances, setAllowances] = useState<string>("15000");
-  const [deductions, setDeductions] = useState<string>("4000");
+  const [designation, setDesignation] = useState("");
+  const [department, setDepartment] = useState("");
+  const [basicSalary, setBasicSalary] = useState<string>("");
+  const [allowances, setAllowances] = useState<string>("0");
+  const [deductions, setDeductions] = useState<string>("0");
   const [salaryMonth, setSalaryMonth] = useState(new Date().toISOString().slice(0, 7));
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
   const [paymentStatus, setPaymentStatus] = useState("Paid");
@@ -64,35 +66,39 @@ export const StaffSalarySection: React.FC<StaffSalarySectionProps> = ({
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  React.useEffect(() => {
+    import("../../services/firebase/staffService").then(({ staffService }) => {
+      staffService.getAllStaff().then((list) => {
+        if (list) setRealStaff(list);
+      }).catch(() => {});
+    });
+  }, []);
+
   // Automated Net Salary Calculation
   const basicNum = Number(basicSalary) || 0;
   const allowNum = Number(allowances) || 0;
   const dedNum = Number(deductions) || 0;
   const calculatedNetSalary = Math.max(0, basicNum + allowNum - dedNum);
 
-  // Quick autofill preset staff members
-  const staffPresets = [
-    { name: "Dr. K. Ramanathan", id: "FAC-1001", desig: "Professor & HOD", dept: "Computer Science & Engineering", basic: 75000, allow: 18000, ded: 6000 },
-    { name: "Dr. S. Meenakshi", id: "FAC-1002", desig: "Associate Professor", dept: "Electronics & Communication", basic: 62000, allow: 15000, ded: 4500 },
-    { name: "Prof. R. Senthil", id: "FAC-1003", desig: "Assistant Professor", dept: "Mechanical Engineering", basic: 48000, allow: 12000, ded: 3200 },
-    { name: "Ms. T. Ananya", id: "FAC-1004", desig: "Assistant Professor", dept: "Information Technology", basic: 45000, allow: 10000, ded: 3000 },
-    { name: "Mr. V. Murugan", id: "STAFF-2001", desig: "Senior Lab Instructor", dept: "Physics / Chemistry Labs", basic: 32000, allow: 6000, ded: 2000 },
-    { name: "Mrs. G. Radha", id: "STAFF-2002", desig: "Head Librarian", dept: "Central Library", basic: 38000, allow: 7500, ded: 2500 },
-  ];
-
-  const handleSelectPreset = (preset: typeof staffPresets[0]) => {
-    setStaffName(preset.name);
-    setStaffId(preset.id);
-    setDesignation(preset.desig);
-    setDepartment(preset.dept);
-    setBasicSalary(String(preset.basic));
-    setAllowances(String(preset.allow));
-    setDeductions(String(preset.ded));
+  const handleSelectStaff = (stf: any) => {
+    setStaffName(stf.name || "");
+    setStaffId(stf.employeeId || stf.id || "");
+    setDesignation(stf.designation || "");
+    setDepartment(stf.department || "");
+    setBasicSalary(stf.salary ? String(stf.salary) : "");
+    setAllowances("0");
+    setDeductions("0");
   };
 
   const handleOpenCreateModal = () => {
     setEditingSalary(null);
-    handleSelectPreset(staffPresets[0]);
+    setStaffName("");
+    setStaffId("");
+    setDesignation("");
+    setDepartment("");
+    setBasicSalary("");
+    setAllowances("0");
+    setDeductions("0");
     setSalaryMonth(new Date().toISOString().slice(0, 7));
     setPaymentDate(new Date().toISOString().slice(0, 10));
     setPaymentStatus("Paid");
@@ -433,26 +439,26 @@ export const StaffSalarySection: React.FC<StaffSalarySectionProps> = ({
             </div>
 
             <form onSubmit={handleSubmitSalary} className="p-6 space-y-4.5 max-h-[80vh] overflow-y-auto">
-              {/* Preset Staff Picker */}
-              {!editingSalary && (
+              {/* Real Staff Picker */}
+              {!editingSalary && realStaff.length > 0 && (
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                     Quick Select Faculty Member
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {staffPresets.map((p) => (
+                    {realStaff.slice(0, 6).map((p) => (
                       <button
                         key={p.id}
                         type="button"
-                        onClick={() => handleSelectPreset(p)}
+                        onClick={() => handleSelectStaff(p)}
                         className={`p-2 rounded-xl text-left border text-xs transition-all ${
-                          staffId === p.id
+                          staffId === (p.employeeId || p.id)
                             ? "bg-blue-50 border-blue-400 text-blue-900 font-bold shadow-xs"
                             : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
                         }`}
                       >
                         <p className="truncate font-semibold">{p.name}</p>
-                        <p className="text-[10px] text-slate-400 truncate">{p.id} • {p.desig}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{p.employeeId || p.id} • {p.designation}</p>
                       </button>
                     ))}
                   </div>

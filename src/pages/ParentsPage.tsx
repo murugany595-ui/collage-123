@@ -31,9 +31,9 @@ export const ParentsPage: React.FC<ParentsPageProps> = ({
 
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
-  const [newPhone, setNewPhone] = useState("+1 555-");
-  const [newChild, setNewChild] = useState("Ava Thompson");
-  const [newAddress, setNewAddress] = useState("42 West End Blvd");
+  const [newPhone, setNewPhone] = useState("");
+  const [newChild, setNewChild] = useState("");
+  const [newAddress, setNewAddress] = useState("");
 
   useEffect(() => {
     fetchParents();
@@ -45,29 +45,47 @@ export const ParentsPage: React.FC<ParentsPageProps> = ({
       const res = await api.admin.getParents(search);
       if (res.success && res.data) {
         setParents(res.data);
+      } else {
+        setParents([]);
       }
     } catch {
-      // fallback
+      setParents([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddParent = (e: React.FormEvent) => {
+  const handleAddParent = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newP = {
-      id: `PAR-${Math.floor(1000 + Math.random() * 9000)}`,
-      name: newName,
-      email: newEmail,
-      phone: newPhone,
-      student_name: newChild,
-      grade: "10-A",
-      address: newAddress,
-      status: "Active",
-    };
-    setParents((prev) => [newP, ...prev]);
-    setShowAddModal(false);
-    onShowToast(`Parent record for ${newName} created successfully!`, "success");
+    try {
+      await api.admin.createParent({
+        name: newName,
+        email: newEmail,
+        phone: newPhone,
+        studentName: newChild,
+        address: newAddress,
+      });
+      setShowAddModal(false);
+      onShowToast(`Parent record for ${newName} created in Firebase!`, "success");
+      setNewName("");
+      setNewEmail("");
+      setNewPhone("");
+      setNewChild("");
+      setNewAddress("");
+      fetchParents();
+    } catch (err: any) {
+      onShowToast(err.message || "Failed to create parent record.", "error");
+    }
+  };
+
+  const handleDeleteParent = async (id: string) => {
+    try {
+      await api.admin.deleteParent(id);
+      onShowToast("Parent record removed successfully.", "success");
+      fetchParents();
+    } catch (err: any) {
+      onShowToast(err.message || "Failed to delete parent.", "error");
+    }
   };
 
   return (
@@ -110,54 +128,71 @@ export const ParentsPage: React.FC<ParentsPageProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {parents.map((p) => (
-                <tr key={p.id} className="hover:bg-slate-50/80 transition">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs">
-                        {p.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-900">{p.name}</p>
-                        <span className="font-mono text-[10px] text-slate-400">{p.id}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 font-medium text-slate-700">{p.phone || "+1 555-0199"}</td>
-                  <td className="px-6 py-4 text-slate-600">{p.email || "parent@brightwood.edu"}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-slate-900">{p.student_name || "Ava Thompson"}</span>
-                      <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-100">
-                        {p.grade || "10-A"}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-slate-500 max-w-xs truncate">{p.address || "Northfield Campus Suburbs"}</td>
-                  <td className="px-6 py-4">
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      Active
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => onNavigate("student-details", "STU-1042")}
-                        title="View Child Record"
-                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        title="Edit Parent"
-                        className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                    </div>
+              {parents.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                    {loading ? "Loading parent records from Firestore..." : "No parent records found in Firestore."}
                   </td>
                 </tr>
-              ))}
+              ) : (
+                parents.map((p) => {
+                  const parentId = p.parentId || p.id;
+                  const studentId = p.linkedStudentId || p.studentId;
+                  return (
+                    <tr key={parentId} className="hover:bg-slate-50/80 transition">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs">
+                            {p.name ? p.name.slice(0, 2).toUpperCase() : "P"}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900">{p.name}</p>
+                            <span className="font-mono text-[10px] text-slate-400">{parentId}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 font-medium text-slate-700">{p.phone || "—"}</td>
+                      <td className="px-6 py-4 text-slate-600">{p.email || "—"}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-slate-900">{p.studentName || p.student_name || "—"}</span>
+                          {(p.studentRegisterNumber || p.grade) && (
+                            <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-100">
+                              {p.studentRegisterNumber || p.grade}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-500 max-w-xs truncate">{p.address || "—"}</td>
+                      <td className="px-6 py-4">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          {p.status || "Active"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {studentId && (
+                            <button
+                              onClick={() => onNavigate("student-details", studentId)}
+                              title="View Child Record"
+                              className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            title="Delete Parent Record"
+                            onClick={() => handleDeleteParent(parentId)}
+                            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

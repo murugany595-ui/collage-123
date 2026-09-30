@@ -77,7 +77,7 @@ export const requestService = {
     const currentUid = auth.currentUser?.uid;
     const payload: StudentRequest = {
       ...data,
-      userId: data.userId || currentUid || "demo-uid",
+      userId: data.userId || currentUid || "",
       id,
       status: data.status || "Pending",
       createdAt: now,

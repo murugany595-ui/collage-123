@@ -87,23 +87,23 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
         }) || null;
       }
 
-      // If still not found, construct structured Student from Auth state
-      if (!found) {
+      // If still not found, construct basic Student from Auth state without dummy values
+      if (!found && user) {
         found = {
-          id: uid || "STU-1042",
-          studentId: uid || "STU-1042",
-          name: user?.name || "Ava Thompson",
-          registerNumber: userReg || "CSE-501",
-          rollNo: userReg || "CSE-501",
-          department: userDept || "cse",
-          year: "3rd Year",
-          section: "Section A",
-          dateOfBirth: "2005-05-14",
-          dob: "2005-05-14",
-          email: user?.email || "ava.thompson@brightwood.edu",
-          phone: user?.phone || "+91 98401 54321",
-          parentName: user?.wardName || "Mark Thompson",
-          parentPhone: "+91 98401 23456",
+          id: uid,
+          studentId: uid,
+          name: user.name || "Student",
+          registerNumber: userReg || "",
+          rollNo: userReg || "",
+          department: userDept || "",
+          year: "1st Year",
+          section: "",
+          dateOfBirth: "",
+          dob: "",
+          email: user.email || "",
+          phone: user.phone || "",
+          parentName: user.wardName || "",
+          parentPhone: "",
           status: "active",
         };
       }
@@ -129,81 +129,13 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
 
       const studentId = studentProfile?.id || user?.id || user?.uid || "";
       const sName = (studentProfile?.name || user?.name || "").toLowerCase().trim();
-      const sReg = (studentProfile?.registerNumber || user?.rollNo || "").toUpperCase().trim();
 
-      let studentInvoices = deptFees.filter((f) => {
+      const studentInvoices = deptFees.filter((f) => {
         return (
           (studentId && f.studentId === studentId) ||
           (sName && f.studentName?.toLowerCase().trim() === sName)
         );
       });
-
-      // If no specific invoices found for student, display default semester fee schedule from Firebase
-      if (studentInvoices.length === 0 && deptFees.length > 0) {
-        studentInvoices = deptFees.slice(0, 4);
-      } else if (studentInvoices.length === 0) {
-        // Fallback default structure
-        studentInvoices = [
-          {
-            id: "INV-2026-001",
-            studentId: studentId || "STU-1042",
-            studentName: studentProfile?.name || "Student",
-            department: dept,
-            academicYear: "2025-2026",
-            feeType: "Tuition Fee",
-            amount: 45000,
-            paidAmount: 45000,
-            balance: 0,
-            paymentStatus: "Paid",
-            dueDate: "2026-10-15",
-            paymentDate: "2026-08-15",
-            receiptNumber: "REC-2026-001",
-          },
-          {
-            id: "INV-2026-002",
-            studentId: studentId || "STU-1042",
-            studentName: studentProfile?.name || "Student",
-            department: dept,
-            academicYear: "2025-2026",
-            feeType: "Exam Fee",
-            amount: 2500,
-            paidAmount: 2500,
-            balance: 0,
-            paymentStatus: "Paid",
-            dueDate: "2026-10-20",
-            paymentDate: "2026-08-20",
-            receiptNumber: "REC-2026-002",
-          },
-          {
-            id: "INV-2026-003",
-            studentId: studentId || "STU-1042",
-            studentName: studentProfile?.name || "Student",
-            department: dept,
-            academicYear: "2025-2026",
-            feeType: "Laboratory & Consumables",
-            amount: 5000,
-            paidAmount: 5000,
-            balance: 0,
-            paymentStatus: "Paid",
-            dueDate: "2026-10-15",
-            paymentDate: "2026-08-25",
-            receiptNumber: "REC-2026-003",
-          },
-          {
-            id: "INV-2026-004",
-            studentId: studentId || "STU-1042",
-            studentName: studentProfile?.name || "Student",
-            department: dept,
-            academicYear: "2025-2026",
-            feeType: "Campus Amenities & Library",
-            amount: 2500,
-            paidAmount: 1250,
-            balance: 1250,
-            paymentStatus: "Partial",
-            dueDate: "2026-10-15",
-          },
-        ];
-      }
 
       setFees(studentInvoices);
     } catch (err) {
@@ -268,7 +200,7 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
       pendingList.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
       return pendingList[0].dueDate;
     }
-    return fees[0]?.dueDate || "2026-10-15";
+    return fees[0]?.dueDate || "";
   }, [fees]);
 
   const unreadNotifsCount = useMemo(() => {

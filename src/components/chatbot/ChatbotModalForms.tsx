@@ -72,7 +72,7 @@ export const FeeExtensionModal: React.FC<
 
       const reqId = await requestService.createRequest({
         category: "fee_extension",
-        userId: user?.id || user?.uid || "demo-uid",
+        userId: user?.id || user?.uid || "",
         userRole: role,
         userEmail: user?.email || "",
         studentId: user?.id || user?.uid,
@@ -351,7 +351,7 @@ export const LeaveRequestModal: React.FC<BaseModalProps> = ({
       setError(null);
       const reqId = await requestService.createRequest({
         category: "leave",
-        userId: user?.id || user?.uid || "demo-uid",
+        userId: user?.id || user?.uid || "",
         userRole: role,
         userEmail: user?.email || "",
         studentId: user?.id || user?.uid,
@@ -517,7 +517,7 @@ export const AttendanceCorrectionModal: React.FC<BaseModalProps> = ({
       setSubmitting(true);
       const reqId = await requestService.createRequest({
         category: "attendance_correction",
-        userId: user?.id || user?.uid || "demo-uid",
+        userId: user?.id || user?.uid || "",
         userRole: role,
         studentName,
         registerNumber,
@@ -657,7 +657,7 @@ export const PaymentIssueModal: React.FC<BaseModalProps> = ({
       setSubmitting(true);
       const reqId = await requestService.createRequest({
         category: "payment_issue",
-        userId: user?.id || user?.uid || "demo-uid",
+        userId: user?.id || user?.uid || "",
         userRole: role,
         studentName,
         registerNumber,

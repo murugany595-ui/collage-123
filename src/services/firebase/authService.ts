@@ -34,79 +34,27 @@ export const authService = {
     expectedRole?: "admin" | "accountant" | "parent"
   ): Promise<AuthSession> {
     const trimmedEmail = email.trim().toLowerCase();
-    const pwd = password || "College@123";
-
-    let fbUser: FirebaseUser | null = null;
-    try {
-      const userCred = await signInWithEmailAndPassword(auth, trimmedEmail, pwd);
-      fbUser = userCred.user;
-    } catch (authError: any) {
-      // If user not found, bootstrap the Firebase Auth account for system/admin credentials
-      if (
-        authError.code === "auth/user-not-found" ||
-        authError.code === "auth/invalid-credential"
-      ) {
-        try {
-          const createCred = await createUserWithEmailAndPassword(auth, trimmedEmail, pwd);
-          fbUser = createCred.user;
-        } catch (createErr) {
-          // If creation fails (e.g. wrong password on existing account), re-throw original
-          throw authError;
-        }
-      } else {
-        throw authError;
-      }
+    if (!password) {
+      throw new Error("Password is required");
     }
+
+    const userCred = await signInWithEmailAndPassword(auth, trimmedEmail, password);
+    const fbUser = userCred.user;
 
     if (!fbUser) {
       throw new Error("Unable to authenticate with Firebase.");
     }
 
-    // Determine initial role & department from email/profile if first time
+    // Determine initial role & department from user profile in Firestore
     let profile = await userService.getUserProfile(fbUser.uid);
     if (!profile) {
-      let role: FirestoreUserProfile["role"] = "staff";
-      let department = "aids";
-      let name = fbUser.displayName || trimmedEmail.split("@")[0];
-      let studentId = "";
-      let rollNo = "";
-      let wardName = "";
-
-      if (trimmedEmail.includes("admin") || trimmedEmail === "principal@brightwood.edu") {
-        role = "admin";
-        department = "all";
-        name = "System Administrator";
-      } else if (trimmedEmail.includes("account") || trimmedEmail.includes("finance") || trimmedEmail === "bursar@brightwood.edu") {
-        role = "accountant";
-        department = "all";
-        name = "Chief Accountant";
-      } else if (trimmedEmail.includes("mark.t@mail.com") || trimmedEmail.includes("parent")) {
-        role = "parent";
-        department = "cse";
-        name = "Mark Thompson (Parent)";
-        wardName = "Ava Thompson";
-        studentId = "STU-1042";
-        rollNo = "CSE-501";
-      } else if (trimmedEmail.includes("ramasamy") || trimmedEmail.includes("sanjay") || trimmedEmail.includes("chen")) {
-        role = "parent";
-        department = "aids";
-        name = "Parent Guardian";
-      }
-
-      // If an expectedRole is explicitly requested for this login, ensure profile matches
-      if (expectedRole && (role === "staff" || !role)) {
-        role = expectedRole;
-        if (role === "admin" || role === "accountant") department = "all";
-      }
-
+      const role: FirestoreUserProfile["role"] = expectedRole || "admin";
       profile = {
         uid: fbUser.uid,
         email: trimmedEmail,
-        name,
+        name: fbUser.displayName || trimmedEmail.split("@")[0],
         role,
-        department,
-        rollNo,
-        wardName,
+        department: role === "admin" || role === "accountant" ? "all" : "general",
       };
 
       await userService.createUserProfile(profile);
@@ -129,9 +77,6 @@ export const authService = {
       }
     }
 
-    // Make sure initial departments exist
-    departmentService.initializeDefaultDepartments().catch(() => {});
-
     return {
       user: {
         uid: profile.uid,
@@ -152,7 +97,7 @@ export const authService = {
     const verifiedStudent = await studentService.verifyStudentLogin(registerNumber, dateOfBirth);
 
     const cleanReg = normalizeRegisterNumber(verifiedStudent.registerNumber || registerNumber);
-    const internalEmail = `student_${cleanReg.toLowerCase().replace(/[^a-z0-9]/g, "")}@brightwood.internal`;
+    const internalEmail = `student_${cleanReg.toLowerCase().replace(/[^a-z0-9]/g, "")}@college.internal`;
     const internalSecret = `Std#${cleanReg}#${normalizeDateString(dateOfBirth).replace(/[^0-9]/g, "")}`;
 
     // 2. Establish authenticated Firebase Auth session
@@ -199,7 +144,7 @@ export const authService = {
       user: {
         uid,
         name: verifiedStudent.name,
-        email: verifiedStudent.email || `${cleanReg.toLowerCase()}@brightwood.edu`,
+        email: verifiedStudent.email || internalEmail,
         role: "student",
         department: verifiedStudent.department,
         phone: verifiedStudent.phone,
@@ -222,7 +167,10 @@ export const authService = {
     designation?: string;
   }): Promise<AuthSession> {
     const trimmedEmail = data.email.trim().toLowerCase();
-    const pwd = data.password || "College@123";
+    if (!data.password) {
+      throw new Error("Password is required for registration");
+    }
+    const pwd = data.password;
     const userCred = await createUserWithEmailAndPassword(auth, trimmedEmail, pwd);
 
     if (data.name) {

@@ -39,13 +39,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onShowToast = () => {} }) 
   }>({});
 
   // Credentials for Email + Password (Admin, Accountancy, Parent)
-  const [email, setEmail] = useState("admin@brightwood.edu");
-  const [password, setPassword] = useState("Password123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   // Credentials for Student (Register ID + Date of Birth ONLY)
-  const [studentRegisterId, setStudentRegisterId] = useState("CSE-501");
-  const [studentDob, setStudentDob] = useState("2005-05-14");
+  const [studentRegisterId, setStudentRegisterId] = useState("");
+  const [studentDob, setStudentDob] = useState("");
 
   const roleTabs: { role: LoginRole; label: string; icon: React.ReactNode; desc: string }[] = [
     {
@@ -78,21 +78,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onShowToast = () => {} }) 
     setSelectedRole(role);
     setGeneralError(null);
     setFieldErrors({});
-
-    // Populate role-appropriate sample defaults
-    if (role === "admin") {
-      setEmail("admin@brightwood.edu");
-      setPassword("Password123!");
-    } else if (role === "accountant") {
-      setEmail("accounts@brightwood.edu");
-      setPassword("Password123!");
-    } else if (role === "parent") {
-      setEmail("mark.t@mail.com");
-      setPassword("Password123!");
-    } else if (role === "student") {
-      setStudentRegisterId("CSE-501");
-      setStudentDob("2005-05-14");
-    }
+    setEmail("");
+    setPassword("");
+    setStudentRegisterId("");
+    setStudentDob("");
   };
 
   const handleAdminOrAccountantOrParentSubmit = async (e: React.FormEvent) => {
@@ -291,7 +280,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onShowToast = () => {} }) 
                         setEmail(e.target.value);
                         setFieldErrors((prev) => ({ ...prev, email: undefined }));
                       }}
-                      placeholder="admin@brightwood.edu"
+                      placeholder="admin@college.edu"
                       className={`w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl border ${
                         fieldErrors.email
                           ? "border-rose-400 bg-rose-50/30 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
@@ -383,7 +372,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onShowToast = () => {} }) 
                         setEmail(e.target.value);
                         setFieldErrors((prev) => ({ ...prev, email: undefined }));
                       }}
-                      placeholder="accounts@brightwood.edu"
+                      placeholder="accountant@college.edu"
                       className={`w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl border ${
                         fieldErrors.email
                           ? "border-rose-400 bg-rose-50/30 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
@@ -475,7 +464,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onShowToast = () => {} }) 
                         setStudentRegisterId(e.target.value);
                         setFieldErrors((prev) => ({ ...prev, registerId: undefined }));
                       }}
-                      placeholder="e.g. CSE-501 or 21AD045"
+                      placeholder="e.g. 21AD045 or REG1001"
                       className={`w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl border ${
                         fieldErrors.registerId
                           ? "border-rose-400 bg-rose-50/30 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
@@ -490,7 +479,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onShowToast = () => {} }) 
                     </p>
                   )}
                   <p className="mt-1 text-[11px] text-slate-400 font-normal">
-                    Assigned by the institution (e.g. CSE-501, 21AD045, ECE-302)
+                    Assigned by the institution (e.g. 21AD045, 22CS102)
                   </p>
                 </div>
 
@@ -564,7 +553,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onShowToast = () => {} }) 
                         setEmail(e.target.value);
                         setFieldErrors((prev) => ({ ...prev, email: undefined }));
                       }}
-                      placeholder="mark.t@mail.com"
+                      placeholder="parent@example.com"
                       className={`w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl border ${
                         fieldErrors.email
                           ? "border-rose-400 bg-rose-50/30 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
@@ -641,84 +630,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onShowToast = () => {} }) 
                 </button>
               </form>
             )}
-
-            {/* Quick Demo Access Bar for effortless testing of all 4 flows */}
-            <div className="mt-6 p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
-              <div className="text-[11px] font-bold text-slate-600 mb-2 flex items-center justify-between">
-                <span>⚡ Quick Demo Portals:</span>
-                <span className="text-[10px] text-slate-400 font-normal">Auto-fills credentials</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  id="demo-admin-btn"
-                  onClick={() => {
-                    handleRoleChange("admin");
-                    setEmail("admin@brightwood.edu");
-                    setPassword("Password123!");
-                  }}
-                  className={`text-left px-2.5 py-1.5 border rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs cursor-pointer ${
-                    selectedRole === "admin"
-                      ? "bg-blue-50 border-blue-300 text-blue-700 font-bold"
-                      : "bg-white hover:bg-slate-100 border-slate-200 text-slate-700"
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                  <span>Admin</span>
-                </button>
-                <button
-                  type="button"
-                  id="demo-accountant-btn"
-                  onClick={() => {
-                    handleRoleChange("accountant");
-                    setEmail("accounts@brightwood.edu");
-                    setPassword("Password123!");
-                  }}
-                  className={`text-left px-2.5 py-1.5 border rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs cursor-pointer ${
-                    selectedRole === "accountant"
-                      ? "bg-emerald-50 border-emerald-300 text-emerald-700 font-bold"
-                      : "bg-white hover:bg-slate-100 border-slate-200 text-slate-700"
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span>Accountancy</span>
-                </button>
-                <button
-                  type="button"
-                  id="demo-student-btn"
-                  onClick={() => {
-                    handleRoleChange("student");
-                    setStudentRegisterId("CSE-501");
-                    setStudentDob("2005-05-14");
-                  }}
-                  className={`text-left px-2.5 py-1.5 border rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs cursor-pointer ${
-                    selectedRole === "student"
-                      ? "bg-purple-50 border-purple-300 text-purple-700 font-bold"
-                      : "bg-white hover:bg-slate-100 border-slate-200 text-slate-700"
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                  <span>Student (Reg+DOB)</span>
-                </button>
-                <button
-                  type="button"
-                  id="demo-parent-btn"
-                  onClick={() => {
-                    handleRoleChange("parent");
-                    setEmail("mark.t@mail.com");
-                    setPassword("Password123!");
-                  }}
-                  className={`text-left px-2.5 py-1.5 border rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs cursor-pointer ${
-                    selectedRole === "parent"
-                      ? "bg-amber-50 border-amber-300 text-amber-700 font-bold"
-                      : "bg-white hover:bg-slate-100 border-slate-200 text-slate-700"
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                  <span>Parent</span>
-                </button>
-              </div>
-            </div>
 
             {/* Note: All manual registration removed per requirements */}
             <div className="mt-4 pt-3 border-t border-slate-100 text-center">

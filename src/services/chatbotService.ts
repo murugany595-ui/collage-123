@@ -89,11 +89,6 @@ export const chatbotService = {
             (name && f.studentName?.toLowerCase() === name.toLowerCase())
         );
 
-        // If no invoice mapped to this specific user ID yet, take top invoices for demo student so real numbers exist
-        if (userInvoices.length === 0 && deptFees.length > 0) {
-          userInvoices = deptFees.slice(0, 3);
-        }
-
         const totalBilled = userInvoices.reduce((acc, f) => acc + (f.amount || 0), 0);
         const totalPaid = userInvoices.reduce((acc, f) => acc + (f.paidAmount || 0), 0);
         const totalPending = userInvoices
@@ -102,19 +97,19 @@ export const chatbotService = {
         const firstPending = userInvoices.find((f) => f.paymentStatus !== "Paid") || userInvoices[0];
 
         context.feeSummary = {
-          totalBilled: totalBilled || 1250,
+          totalBilled: totalBilled || 0,
           paidAmount: totalPaid || 0,
-          pendingAmount: totalPending !== undefined ? totalPending : 1250,
-          dueDate: firstPending?.dueDate || "2026-08-30",
-          paymentStatus: totalPending === 0 && totalBilled > 0 ? "Paid" : "Pending",
+          pendingAmount: totalPending || 0,
+          dueDate: firstPending?.dueDate || "",
+          paymentStatus: totalBilled === 0 ? "No Invoices" : (totalPending === 0 ? "Paid" : "Pending"),
           invoices: userInvoices.map((inv) => ({
             id: inv.id,
-            feeType: inv.feeType || "Tuition Fee",
-            amount: inv.amount,
-            paidAmount: inv.paidAmount,
-            balance: inv.balance,
-            paymentStatus: inv.paymentStatus,
-            dueDate: inv.dueDate,
+            feeType: inv.feeType || "Fee",
+            amount: inv.amount || 0,
+            paidAmount: inv.paidAmount || 0,
+            balance: inv.balance || 0,
+            paymentStatus: inv.paymentStatus || "Pending",
+            dueDate: inv.dueDate || "",
           })),
         };
 
@@ -122,20 +117,17 @@ export const chatbotService = {
         const attRecords = await attendanceService
           .getAttendanceByDepartment(dept, { studentId: uid })
           .catch(() => []);
-        const totalClasses = attRecords.length > 0 ? attRecords.length : 45;
-        const attendedClasses =
-          attRecords.length > 0
-            ? attRecords.filter((r) => r.status === "Present").length
-            : 42;
+        const totalClasses = attRecords.length;
+        const attendedClasses = attRecords.filter((r) => r.status === "Present").length;
         const absentClasses = totalClasses - attendedClasses;
-        const rate = Math.round((attendedClasses / totalClasses) * 100);
+        const rate = totalClasses > 0 ? Math.round((attendedClasses / totalClasses) * 100) : 0;
 
         context.attendanceSummary = {
           attendancePercentage: rate,
           totalClasses,
           attendedClasses,
           absentClasses,
-          shortage: rate < 75,
+          shortage: totalClasses > 0 && rate < 75,
         };
 
         // 3. Fetch Exams
@@ -276,10 +268,10 @@ function generateClientContextFallback(params: {
 
   if (/fee|balance|pending|evlo|due date|last date|pay|katta|panam|installment/i.test(q)) {
     const pending = fs?.pendingAmount ?? 0;
-    const dueDate = fs?.dueDate || "October 15, 2026";
+    const dueDate = fs?.dueDate ? `\n• Due Date: ${fs.dueDate}` : "";
     if (pending > 0) {
       return {
-        reply: `Hello ${name}! Your current pending fee balance is ₹${Number(pending).toLocaleString("en-IN")}.\n• Due Date: ${dueDate}\n• Status: Pending\n\nYou can view invoices or request a fee extension using the actions below.`,
+        reply: `Hello ${name}! Your current pending fee balance is ₹${Number(pending).toLocaleString("en-IN")}.${dueDate}\n• Status: Pending\n\nYou can view invoices or request a fee extension using the actions below.`,
         actions: [
           { label: "Open Fees Portal", target: "nav:fees" },
           { label: "Request Fee Extension", target: "form:fee_extension" },
@@ -305,13 +297,16 @@ function generateClientContextFallback(params: {
 
   if (/attendance|shortage|percentage/i.test(q)) {
     const att = params.context?.attendanceSummary;
-    const rate = att?.attendancePercentage ?? 92;
+    const rate = att?.attendancePercentage ?? 0;
+    const total = att?.totalClasses ?? 0;
     return {
-      reply: `Your current attendance rate is ${rate}%.\n${
-        rate < 75
-          ? "⚠️ You are below the 75% university eligibility requirement. Please submit an attendance correction or on-duty request."
-          : "✅ Your attendance is above the required 75% threshold."
-      }`,
+      reply: total === 0
+        ? `No attendance records have been registered for your account yet.`
+        : `Your current attendance rate is ${rate}% (${att?.attendedClasses || 0}/${total} classes).\n${
+            rate < 75
+              ? "⚠️ You are below the 75% university eligibility requirement. Please submit an attendance correction or on-duty request."
+              : "✅ Your attendance is above the required 75% threshold."
+          }`,
       actions: [
         { label: "Open Attendance", target: "nav:attendance" },
         { label: "Attendance Correction", target: "form:attendance_correction" },

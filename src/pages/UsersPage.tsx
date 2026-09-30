@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { UserRole, ROLE_CONFIGS } from "../types";
+import { api } from "../services/api";
 
 export interface UsersPageProps {
   onShowToast?: (msg: string, type: "success" | "error" | "info") => void;
@@ -31,36 +32,66 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast = () => {} }) 
   const [showAddModal, setShowAddModal] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  const [users, setUsers] = useState<any[]>([
-    { id: "USR-001", name: "Nora Bennett", email: "principal@ourcollege.edu", role: "admin", department: "Executive Administration", status: "Active", lastLogin: "Today, 08:30 AM" },
-    { id: "USR-002", name: "Prof. Rajesh Sharma", email: "hod.cse@ourcollege.edu", role: "hod", department: "Computer Science & Engineering", status: "Active", lastLogin: "Today, 09:10 AM" },
-    { id: "USR-003", name: "Rita Álvarez", email: "bursar@ourcollege.edu", role: "accountant", department: "Finance & Accounts", status: "Active", lastLogin: "Today, 09:15 AM" },
-    { id: "USR-004", name: "Dr. Marcus Reed", email: "marcus.reed@ourcollege.edu", role: "faculty", department: "Computer Science", status: "Active", lastLogin: "Yesterday" },
-    { id: "USR-005", name: "Ava Thompson", email: "ava.t@ourcollege.edu", role: "student", department: "B.Tech CSE - Sem 5", status: "Active", lastLogin: "Today, 10:12 AM" },
-    { id: "USR-006", name: "Mark Thompson", email: "mark.t@mail.com", role: "parent", department: "Guardian of Ava", status: "Active", lastLogin: "Jul 23, 2026" },
-  ]);
+  const [users, setUsers] = useState<any[]>([]);
 
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<UserRole>("faculty");
   const [newDept, setNewDept] = useState("Computer Science & Engineering");
 
+  const loadUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const res = await api.users.getAll();
+      if (res.success && Array.isArray(res.data)) {
+        setUsers(res.data);
+      } else {
+        setUsers([]);
+      }
+    } catch (err: any) {
+      console.warn("Could not load users from Firestore:", err);
+      setUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newU = {
-      id: `USR-00${users.length + 1}`,
-      name: newName,
-      email: newEmail,
-      role: newRole,
-      department: newDept,
-      status: "Active",
-      lastLogin: "Never",
-    };
-    setUsers((prev) => [newU, ...prev]);
-    setShowAddModal(false);
-    onShowToast(`User account record for ${newName} (${ROLE_CONFIGS[newRole]?.label}) created!`, "success");
-    setNewName("");
-    setNewEmail("");
+    try {
+      const uid = `USR-${Date.now().toString().slice(-6)}`;
+      const newU = {
+        uid,
+        id: uid,
+        name: newName,
+        email: newEmail,
+        role: newRole,
+        department: newDept,
+        status: "Active",
+      };
+      await api.users.create(newU);
+      setShowAddModal(false);
+      onShowToast(`User account record for ${newName} created in Firebase!`, "success");
+      setNewName("");
+      setNewEmail("");
+      loadUsers();
+    } catch (err: any) {
+      onShowToast(err.message || "Failed to create user account.", "error");
+    }
+  };
+
+  const handleDeleteUser = async (uid: string) => {
+    try {
+      await api.users.delete(uid);
+      onShowToast("User account deleted successfully.", "success");
+      loadUsers();
+    } catch (err: any) {
+      onShowToast(err.message || "Failed to delete user.", "error");
+    }
   };
 
   const handleSendReset = async (email: string) => {
@@ -167,54 +198,70 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast = () => {} }) 
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((u) => {
-                const roleKey = u.role?.toLowerCase() || "student";
-                const roleConfig = ROLE_CONFIGS[roleKey as UserRole] || ROLE_CONFIGS.student;
-                return (
-                  <tr key={u.id || u.uid} className="hover:bg-slate-50/80 transition">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs">
-                          {u.name ? u.name.slice(0, 2).toUpperCase() : "U"}
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
+                    {loadingUsers ? "Loading users from Firestore..." : "No user accounts found."}
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((u) => {
+                  const roleKey = u.role?.toLowerCase() || "student";
+                  const roleConfig = ROLE_CONFIGS[roleKey as UserRole] || ROLE_CONFIGS.student;
+                  const uid = u.uid || u.id;
+                  return (
+                    <tr key={uid} className="hover:bg-slate-50/80 transition">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs">
+                            {u.name ? u.name.slice(0, 2).toUpperCase() : "U"}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900">{u.name}</p>
+                            <span className="font-mono text-[10px] text-slate-400">
+                              {uid ? `UID: ${uid.slice(0, 8)}` : ""}
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-slate-900">{u.name}</p>
-                          <span className="font-mono text-[10px] text-slate-400">
-                            {u.uid ? `UID: ${u.uid.slice(0, 6)}...` : u.id}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-600 font-medium">{u.email}</td>
-                    <td className="px-6 py-4 text-slate-600">{u.department || "Academic"}</td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                          roleColors[roleKey] || roleColors.student
-                        }`}
-                      >
-                        {roleConfig.label}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        {u.status || "Active"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          title="Send Password Reset Email via Firebase"
-                          onClick={() => handleSendReset(u.email)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 font-medium">{u.email}</td>
+                      <td className="px-6 py-4 text-slate-600">{u.department || "Academic"}</td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                            roleColors[roleKey] || roleColors.student
+                          }`}
                         >
-                          <Lock className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                          {roleConfig.label}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          {u.status || "Active"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            title="Send Password Reset Email via Firebase"
+                            onClick={() => handleSendReset(u.email)}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                          >
+                            <Lock className="w-4 h-4" />
+                          </button>
+                          <button
+                            title="Delete User from Firestore"
+                            onClick={() => handleDeleteUser(uid)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

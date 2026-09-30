@@ -124,16 +124,16 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             <div>
               <span className="text-[10px] text-slate-400 block font-bold uppercase">Student ID / Roll</span>
               <span className="font-bold text-slate-800 font-mono">
-                {receipt.student_id || "STU-1042"} {receipt.roll ? `• ${receipt.roll}` : ""}
+                {receipt.student_id || "N/A"} {receipt.roll ? `• ${receipt.roll}` : ""}
               </span>
             </div>
             <div>
               <span className="text-[10px] text-slate-400 block font-bold uppercase">Department / Class</span>
-              <span className="font-bold text-blue-600">{receipt.grade || "B.Tech CSE - Sem 5"}</span>
+              <span className="font-bold text-blue-600">{receipt.grade || "General"}</span>
             </div>
             <div>
               <span className="text-[10px] text-slate-400 block font-bold uppercase">Payment Instrument</span>
-              <span className="font-bold text-slate-800">{receipt.payment_method || "Card POS Terminal"}</span>
+              <span className="font-bold text-slate-800">{receipt.payment_method || "Online / Cash"}</span>
             </div>
           </div>
 
@@ -145,7 +145,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             </div>
             <div className="flex justify-between text-xs py-1 text-slate-700">
               <span className="font-medium">
-                {receipt.fee_type || "Semester Tuition & Lab Academic Term Fee"}
+                {receipt.fee_type || "Term Fee"}
               </span>
               <span className="font-bold text-slate-900">{formattedAmount}</span>
             </div>
@@ -169,11 +169,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
           <div className="flex items-center justify-between pt-4 border-t border-dashed border-slate-200">
             <div className="flex items-center gap-2 text-slate-500 text-[11px]">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Digitally Authenticated by Bursar Terminal</span>
+              <span>Digitally Authenticated by Accounts Terminal</span>
             </div>
             <div className="text-right">
-              <div className="font-serif italic font-bold text-slate-700 text-xs">Rita Álvarez</div>
-              <p className="text-[10px] text-slate-400">Authorized Bursar Officer</p>
+              <div className="font-serif italic font-bold text-slate-700 text-xs">Authorized Signatory</div>
+              <p className="text-[10px] text-slate-400">Accounts & Finance Section</p>
             </div>
           </div>
         </div>

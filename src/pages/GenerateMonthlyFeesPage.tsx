@@ -10,6 +10,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { api } from "../services/api";
+import { departmentService, Department } from "../services/firebase/departmentService";
+import { studentService, Student } from "../services/firebase/studentService";
 
 export interface GenerateMonthlyFeesPageProps {
   onShowToast?: (msg: string, type: "success" | "error" | "info") => void;
@@ -25,30 +27,31 @@ export const GenerateMonthlyFeesPage: React.FC<GenerateMonthlyFeesPageProps> = (
   const [targetClass, setTargetClass] = useState("ALL");
   const [dueDate, setDueDate] = useState("2026-08-30");
 
-  const [feeItems, setFeeItems] = useState([
-    { id: "tuition", label: "Tuition & Academic Term Fee", amount: 45000 },
-    { id: "exam", label: "University Examination Fee", amount: 2500 },
-    { id: "lab", label: "Library & Laboratory Consumables", amount: 8000 },
-    { id: "amenities", label: "Campus Amenities & Development", amount: 6000 },
-  ]);
-
-  const [selectedFees, setSelectedFees] = useState<Record<string, boolean>>({
-    tuition: true,
-    exam: true,
-    lab: true,
-    amenities: true,
-  });
-
+  const [feeItems, setFeeItems] = useState<{ id: string; label: string; amount: number }[]>([]);
+  const [selectedFees, setSelectedFees] = useState<Record<string, boolean>>({});
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const [generatedSuccess, setGeneratedSuccess] = useState(false);
+  const [generatedCount, setGeneratedCount] = useState(0);
 
   useEffect(() => {
-    loadFeeCategories();
+    loadInitialData();
   }, []);
 
-  const loadFeeCategories = async () => {
+  const loadInitialData = async () => {
     try {
-      const res = await api.fees.getCategories();
+      setLoadingData(true);
+      const [res, deptList, studentList] = await Promise.all([
+        api.fees.getCategories().catch(() => ({ success: false, data: [] })),
+        departmentService.getDepartments().catch(() => []),
+        studentService.getAllStudents().catch(() => []),
+      ]);
+
+      setDepartments(deptList || []);
+      setStudents(studentList || []);
+
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
         const mapped = res.data.map((c: any) => ({
           id: c.id,
@@ -61,33 +64,73 @@ export const GenerateMonthlyFeesPage: React.FC<GenerateMonthlyFeesPageProps> = (
           selMap[m.id] = true;
         });
         setSelectedFees(selMap);
+      } else {
+        setFeeItems([]);
+        setSelectedFees({});
       }
     } catch {
-      // Use defaults
+      setFeeItems([]);
+    } finally {
+      setLoadingData(false);
     }
   };
 
   const totalPerStudent = feeItems.reduce((acc, item) => {
-    return selectedFees[item.id as keyof typeof selectedFees] ? acc + item.amount : acc;
+    return selectedFees[item.id] ? acc + item.amount : acc;
   }, 0);
 
-  const studentCount = targetClass === "ALL" ? 2647 : 420;
+  const targetStudents = targetClass === "ALL"
+    ? students
+    : students.filter(
+        (s) =>
+          (s.department || "").toLowerCase() === targetClass.toLowerCase() ||
+          s.grade === targetClass
+      );
+  const studentCount = targetStudents.length;
   const projectedTotal = totalPerStudent * studentCount;
 
-  const handleToggle = (id: keyof typeof selectedFees) => {
+  const handleToggle = (id: string) => {
     setSelectedFees((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
+    if (studentCount === 0) {
+      onShowToast("No students enrolled in the selected target batch to generate invoices for.", "error");
+      return;
+    }
+    if (totalPerStudent <= 0) {
+      onShowToast("Please select at least one fee category with an amount greater than ₹0.", "error");
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const selectedLabels = feeItems
+        .filter((f) => selectedFees[f.id])
+        .map((f) => f.label)
+        .join(", ");
+
+      const res = await api.fees.batchGenerate({
+        department: targetClass === "ALL" ? undefined : targetClass,
+        feeType: selectedLabels || "Tuition & Academic Term Fee",
+        amount: totalPerStudent,
+        dueDate,
+        month: billingMonth,
+      });
+
+      const count = res.count || 0;
+      setGeneratedCount(count);
       setGeneratedSuccess(true);
       onShowToast(
-        `Successfully generated ${studentCount} invoices totaling ₹${projectedTotal.toLocaleString()} for ${billingMonth}!`,
+        `Successfully generated ${count} invoices totaling ₹${(count * totalPerStudent).toLocaleString()} for ${billingMonth}!`,
         "success"
       );
-    }, 1200);
+    } catch (err: any) {
+      console.error("Batch fee generation error:", err);
+      onShowToast(err.message || "Failed to generate monthly fees", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -114,7 +157,7 @@ export const GenerateMonthlyFeesPage: React.FC<GenerateMonthlyFeesPageProps> = (
             <div>
               <h3 className="font-bold text-emerald-900 text-base">Invoices Generated Successfully!</h3>
               <p className="text-xs text-emerald-700">
-                {studentCount} fee invoices for <strong>{billingMonth}</strong> have been created and queued for parent settlement.
+                {generatedCount} fee invoices for <strong>{billingMonth}</strong> have been created in Firestore and queued for parent settlement.
               </p>
             </div>
           </div>
@@ -163,12 +206,19 @@ export const GenerateMonthlyFeesPage: React.FC<GenerateMonthlyFeesPageProps> = (
                 onChange={(e) => setTargetClass(e.target.value)}
                 className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 bg-white"
               >
-                <option value="ALL">All Enrolled College Batches (2,647 Students)</option>
-                <option value="B.Tech CSE">B.Tech Computer Science - Sem 5 (64 Students)</option>
-                <option value="B.Tech ECE">B.Tech Electronics & Comm - Sem 3 (58 Students)</option>
-                <option value="B.Tech MECH">B.Tech Mechanical - Sem 7 (52 Students)</option>
-                <option value="MBA">MBA Finance - Sem 1 (48 Students)</option>
-                <option value="B.Sc DS">B.Sc Data Science - Sem 1 (50 Students)</option>
+                <option value="ALL">All Enrolled Students ({students.length} Students)</option>
+                {departments.map((d) => {
+                  const dCount = students.filter(
+                    (s) =>
+                      (s.department || "").toLowerCase() === d.id.toLowerCase() ||
+                      (s.department || "").toLowerCase() === (d.name || "").toLowerCase()
+                  ).length;
+                  return (
+                    <option key={d.id} value={d.id}>
+                      {d.name} ({dCount} Students)
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -201,29 +251,37 @@ export const GenerateMonthlyFeesPage: React.FC<GenerateMonthlyFeesPageProps> = (
             <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-3">
               Included Fee Heads / Categories
             </h4>
-            <div className="space-y-2.5">
-              {feeItems.map((item) => (
-                <label
-                  key={item.id}
-                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
-                    selectedFees[item.id as keyof typeof selectedFees]
-                      ? "border-blue-500 bg-blue-50/50 text-slate-900"
-                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedFees[item.id as keyof typeof selectedFees]}
-                      onChange={() => handleToggle(item.id as keyof typeof selectedFees)}
-                      className="rounded text-blue-600 w-4 h-4"
-                    />
-                    <span className="text-xs font-semibold">{item.label}</span>
-                  </div>
-                  <span className="text-xs font-bold text-slate-900">₹{item.amount.toFixed(2)}</span>
-                </label>
-              ))}
-            </div>
+            {loadingData ? (
+              <p className="text-xs text-slate-400 py-3">Loading fee categories...</p>
+            ) : feeItems.length === 0 ? (
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                No fee categories configured yet. Add fee categories in the Fee Categories page to generate invoices.
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {feeItems.map((item) => (
+                  <label
+                    key={item.id}
+                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
+                      selectedFees[item.id]
+                        ? "border-blue-500 bg-blue-50/50 text-slate-900"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={!!selectedFees[item.id]}
+                        onChange={() => handleToggle(item.id)}
+                        className="rounded text-blue-600 w-4 h-4"
+                      />
+                      <span className="text-xs font-semibold">{item.label}</span>
+                    </div>
+                    <span className="text-xs font-bold text-slate-900">₹{item.amount.toFixed(2)}</span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -264,7 +322,7 @@ export const GenerateMonthlyFeesPage: React.FC<GenerateMonthlyFeesPageProps> = (
 
             <button
               onClick={handleGenerate}
-              disabled={loading || totalPerStudent === 0}
+              disabled={loading || totalPerStudent === 0 || studentCount === 0}
               className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs sm:text-sm shadow-md transition duration-200 disabled:opacity-50"
             >
               {loading ? (

@@ -48,11 +48,11 @@ export const ElectricityBillSection: React.FC<ElectricityBillSectionProps> = ({
 
   // Form State
   const [billingMonth, setBillingMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [ebConsumerNumber, setEbConsumerNumber] = useState("EB-9482014-LT");
-  const [meterLocation, setMeterLocation] = useState("Main Academic Substation & Classrooms");
-  const [previousReading, setPreviousReading] = useState<string>("84200");
-  const [currentReading, setCurrentReading] = useState<string>("89650");
-  const [billAmount, setBillAmount] = useState<string>("38500");
+  const [ebConsumerNumber, setEbConsumerNumber] = useState("");
+  const [meterLocation, setMeterLocation] = useState("");
+  const [previousReading, setPreviousReading] = useState<string>("");
+  const [currentReading, setCurrentReading] = useState<string>("");
+  const [billAmount, setBillAmount] = useState<string>("");
   const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 10));
   const [paidDate, setPaidDate] = useState(new Date().toISOString().slice(0, 10));
   const [paymentStatus, setPaymentStatus] = useState("Paid");
@@ -63,35 +63,41 @@ export const ElectricityBillSection: React.FC<ElectricityBillSectionProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Automated Unit Consumption Calculation
-  const prevNum不易 = Number(previousReading) || 0;
-  const currNum不易 = Number(currentReading) || 0;
-  const calculatedUnits = Math.max(0, currNum不易 - prevNum不易);
+  const prevNum = Number(previousReading) || 0;
+  const currNum = Number(currentReading) || 0;
+  const calculatedUnits = Math.max(0, currNum - prevNum);
 
-  const meterPresets = [
-    { location: "Main Academic Substation & Classrooms", ebNo: "EB-9482014-LT", prev: 84200, curr: 89650, amount: 38500 },
-    { location: "Computer Science & AI Server Complex", ebNo: "EB-9482015-HT", prev: 112400, curr: 118900, amount: 46200 },
-    { location: "Hostel Blocks (A & B) Power Substation", ebNo: "EB-9482016-LT", prev: 63100, curr: 67300, amount: 28400 },
-    { location: "Central Administrative Complex & Auditorium", ebNo: "EB-9482017-LT", prev: 42300, curr: 45100, amount: 19800 },
-  ];
+  const existingMeters = Array.from(
+    new Set(bills.map((b) => b.eb_consumer_number).filter(Boolean))
+  ).map((eb) => {
+    const b = bills.find((x) => x.eb_consumer_number === eb);
+    return {
+      location: b?.meter_location || "",
+      ebNo: eb,
+      prev: b?.current_reading || 0,
+    };
+  });
 
-  const handleSelectPreset = (p: typeof meterPresets[0]) => {
-    setMeterLocation(p.location);
-    setEbConsumerNumber(p.ebNo);
-    setPreviousReading(String(p.prev));
-    setCurrentReading(String(p.curr));
-    setBillAmount(String(p.amount));
+  const handleSelectExistingMeter = (m: { location: string; ebNo: string; prev: number }) => {
+    setMeterLocation(m.location);
+    setEbConsumerNumber(m.ebNo);
+    setPreviousReading(m.prev > 0 ? String(m.prev) : "");
   };
 
-  const handleOpenCreateModal進 = () => {
+  const handleOpenCreateModal = () => {
     setEditingBill(null);
-    handleSelectPreset(meterPresets[0]);
+    setEbConsumerNumber("");
+    setMeterLocation("");
+    setPreviousReading("");
+    setCurrentReading("");
+    setBillAmount("");
     setBillingMonth(new Date().toISOString().slice(0, 7));
     setDueDate(new Date().toISOString().slice(0, 10));
     setPaidDate(new Date().toISOString().slice(0, 10));
     setPaymentStatus("Paid");
     setReceiptName(null);
     setReceiptUrl(null);
-    setRemarks("Verified with meter reading logs and board tariff invoice.");
+    setRemarks("");
     setFormErrors({});
     setModalOpen(true);
   };
@@ -203,7 +209,7 @@ export const ElectricityBillSection: React.FC<ElectricityBillSectionProps> = ({
 
         <div className="flex items-center gap-3">
           <button
-            onClick={handleOpenCreateModal進}
+            onClick={handleOpenCreateModal}
             className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-500/20 flex items-center gap-2 transition-all"
           >
             <Plus className="w-4 h-4" />
@@ -239,7 +245,7 @@ export const ElectricityBillSection: React.FC<ElectricityBillSectionProps> = ({
             Average Tariff Rate
           </span>
           <h3 className="text-2xl font-black text-slate-900 mt-1">
-            {totalUnitsConsumed > 0 ? `₹${(totalBillAmount / totalUnitsConsumed).toFixed(2)} / kWh` : "₹7.10 / kWh"}
+            {totalUnitsConsumed > 0 ? `₹${(totalBillAmount / totalUnitsConsumed).toFixed(2)} / kWh` : "₹0.00 / kWh"}
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">Commercial Institutional HT/LT tariff tier</p>
         </div>
@@ -421,25 +427,25 @@ export const ElectricityBillSection: React.FC<ElectricityBillSectionProps> = ({
             </div>
 
             <form onSubmit={handleSubmitBill} className="p-6 space-y-4.5 max-h-[80vh] overflow-y-auto">
-              {/* Presets */}
-              {!editingBill && (
+              {/* Existing Recorded Meters Picker */}
+              {!editingBill && existingMeters.length > 0 && (
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                    Select Campus Substation Meter
+                    Select Previously Logged Meter
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {meterPresets.map((p) => (
+                    {existingMeters.map((p) => (
                       <button
                         key={p.ebNo}
                         type="button"
-                        onClick={() => handleSelectPreset(p)}
+                        onClick={() => handleSelectExistingMeter(p)}
                         className={`p-2.5 rounded-xl text-left border text-xs transition-all ${
                           ebConsumerNumber === p.ebNo
                             ? "bg-amber-50 border-amber-400 text-amber-950 font-bold shadow-xs"
                             : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
                         }`}
                       >
-                        <p className="font-semibold truncate">{p.location}</p>
+                        <p className="font-semibold truncate">{p.location || p.ebNo}</p>
                         <p className="text-[10px] text-slate-400 font-mono mt-0.5">{p.ebNo}</p>
                       </button>
                     ))}

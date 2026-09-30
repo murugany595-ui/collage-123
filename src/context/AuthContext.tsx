@@ -166,14 +166,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (!firestoreProfile) {
           // Provision initial Firestore profile
-          const savedRole = (localStorage.getItem("edufee_active_role") as UserRole) || 
-            (email.includes("admin") ? "admin" :
-             email.includes("hod") ? "hod" :
-             email.includes("account") ? "accountant" :
-             email.includes("student") ? "student" :
-             email.includes("parent") ? "parent" : "staff");
+          const savedRole = (localStorage.getItem("edufee_active_role") as UserRole) || "admin";
           const displayName = fbUser.displayName || email.split("@")[0] || "User";
-          const dept = savedRole === "admin" ? "all" : "aids";
+          const dept = savedRole === "admin" || savedRole === "accountant" ? "all" : "general";
 
           firestoreProfile = {
             uid: fbUser.uid,
@@ -227,14 +222,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error("Error retrieving user profile from Firestore:", err);
         // Fallback user object so the app never hangs or crashes
         const email = fbUser.email || "";
-        const fallbackRole = (localStorage.getItem("edufee_active_role") as UserRole) || (email.includes("admin") ? "admin" : "staff");
+        const fallbackRole = (localStorage.getItem("edufee_active_role") as UserRole) || "admin";
         const fallbackUser: User = {
           id: fbUser.uid,
           uid: fbUser.uid,
           name: fbUser.displayName || email.split("@")[0] || "User",
           email,
           role: fallbackRole,
-          department: fallbackRole === "admin" ? "all" : "aids",
+          department: fallbackRole === "admin" || fallbackRole === "accountant" ? "all" : "general",
         };
         setUser(fallbackUser);
         setProfile(fallbackUser as any);

@@ -52,8 +52,8 @@ export const StudentsListPage: React.FC<StudentsListPageProps> = ({
       if (res.success) {
         setStudents(res.data || []);
       }
-    } catch {
-      // fallback to mock if offline
+    } catch (err) {
+      console.warn("Error fetching students from Firebase:", err);
     } finally {
       setLoading(false);
     }

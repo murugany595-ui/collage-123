@@ -25,16 +25,16 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
   const [roll, setRoll] = useState(initialData?.roll || "");
   const [grade, setGrade] = useState(initialData?.grade || "B.Tech CSE");
   const [gender, setGender] = useState(initialData?.gender || "Female");
-  const [dob, setDob] = useState(initialData?.dob || "2005-05-14");
+  const [dob, setDob] = useState(initialData?.dob || "");
   const [bloodGroup, setBloodGroup] = useState(initialData?.bloodGroup || "O+");
   const [email, setEmail] = useState(initialData?.email || "");
-  const [phone, setPhone] = useState(initialData?.phone || "+1 555-0192");
+  const [phone, setPhone] = useState(initialData?.phone || "");
   const [guardian, setGuardian] = useState(initialData?.guardian || "");
-  const [guardianPhone, setGuardianPhone] = useState("+1 555-201-3344");
-  const [guardianEmail, setGuardianEmail] = useState("parent@ourcollege.edu");
-  const [address, setAddress] = useState("42 West End Blvd, Northfield");
-  const [parentPassword, setParentPassword] = useState("Password123!");
-  const [transportRoute, setTransportRoute] = useState("Route 4 (North Campus Suburbs)");
+  const [guardianPhone, setGuardianPhone] = useState(initialData?.guardianPhone || "");
+  const [guardianEmail, setGuardianEmail] = useState(initialData?.guardianEmail || "");
+  const [address, setAddress] = useState(initialData?.address || "");
+  const [parentPassword, setParentPassword] = useState("");
+  const [transportRoute, setTransportRoute] = useState("None");
   const [hostel, setHostel] = useState("No");
 
   const [loading, setLoading] = useState(false);
@@ -47,7 +47,7 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
     setError(null);
 
     try {
-      const assignedRoll = roll || `CSE-${Math.floor(100 + Math.random() * 899)}`;
+      const assignedRoll = roll || `REG-${Math.floor(1000 + Math.random() * 8999)}`;
       const deptCode = grade.toLowerCase().includes("cse")
         ? "cse"
         : grade.toLowerCase().includes("ece")
@@ -61,8 +61,8 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
         roll: assignedRoll,
         rollNo: assignedRoll,
         registerNumber: assignedRoll,
-        dateOfBirth: dob || "2005-05-14",
-        dob: dob || "2005-05-14",
+        dateOfBirth: dob,
+        dob: dob,
         grade,
         gender,
         bloodGroup,
@@ -71,10 +71,10 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
         parentName: guardian || "Guardian",
         parentPhone: guardianPhone,
         guardianPhone,
-        parentEmail: guardianEmail || "parent@mail.com",
-        guardianEmail: guardianEmail || "parent@mail.com",
-        parentPassword: parentPassword || "Password123!",
-        email: email || `${name.toLowerCase().replace(/\s+/g, ".")}@brightwood.edu`,
+        parentEmail: guardianEmail,
+        guardianEmail,
+        parentPassword: parentPassword || undefined,
+        email: email,
         phone,
         address,
         year: grade.includes("Sem 1") ? "1st Year" : grade.includes("Sem 3") ? "2nd Year" : "3rd Year",
@@ -84,7 +84,7 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
       const res = await api.admin.createStudent(studentPayload);
       if (res.success) {
         setSuccessMsg(
-          `Student record created! Register ID: ${assignedRoll} (DOB: ${dob || "2005-05-14"}). Parent login created for ${guardianEmail || "parent@mail.com"}.`
+          `Student record created! Register ID: ${assignedRoll}.${guardianEmail ? ` Parent account linked to ${guardianEmail}.` : ""}`
         );
         setTimeout(() => {
           onNavigate("students-list");
@@ -148,7 +148,7 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
               <input
                 type="text"
                 required
-                placeholder="e.g. Ava Thompson"
+                placeholder="Student full name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -282,7 +282,7 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
               <input
                 type="text"
                 required
-                placeholder="e.g. Mark Thompson"
+                placeholder="Guardian full name"
                 value={guardian}
                 onChange={(e) => setGuardian(e.target.value)}
                 className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200"
@@ -295,6 +295,7 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
                 type="text"
                 value={guardianPhone}
                 onChange={(e) => setGuardianPhone(e.target.value)}
+                placeholder="Phone number"
                 className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200"
               />
             </div>
@@ -306,7 +307,7 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
                 required
                 value={guardianEmail}
                 onChange={(e) => setGuardianEmail(e.target.value)}
-                placeholder="parent@mail.com"
+                placeholder="parent@example.com"
                 className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200"
               />
             </div>
@@ -317,7 +318,7 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
                 type="text"
                 value={parentPassword}
                 onChange={(e) => setParentPassword(e.target.value)}
-                placeholder="Password123!"
+                placeholder="Set parent account password"
                 className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 font-mono"
               />
               <span className="text-[10px] text-slate-400">Used by parent to login to Parent Dashboard</span>
@@ -329,6 +330,7 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
                 type="text"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
+                placeholder="Enter residential address"
                 className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200"
               />
             </div>

@@ -85,11 +85,11 @@ export const CollectFeeModal: React.FC<CollectFeeModalProps> = ({
     setError(null);
 
     try {
-      const studentId = invoice.student_id || invoice.studentId || invoice.id || "STU-1042";
+      const studentId = invoice.student_id || invoice.studentId || invoice.id || "";
       const invoiceId = invoice.id || invoice.invoice_id || "";
-      const studentName = invoice.student || invoice.name || invoice.student_name || "Ava Thompson";
-      const grade = invoice.grade || "B.Tech CSE - Sem 5";
-      const category = invoice.category || invoice.type || invoice.fee_type || "Tuition & Academic Term Fee";
+      const studentName = invoice.student || invoice.name || invoice.student_name || "Student";
+      const grade = invoice.grade || "General";
+      const category = invoice.category || invoice.type || invoice.fee_type || "Term Fee";
 
       const res = await api.fees.collect({
         student_id: studentId,

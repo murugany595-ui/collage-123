@@ -112,47 +112,38 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   }
 
   // Compute 9 exact financial numbers
-  const totalFeesCollected = financialData?.totalFeesCollected || 5125.0;
-  const pendingFees = financialData?.pendingFees || 4430.0;
-  const examFeesCollected = examSummary?.collectedExamFees || 10000.0;
-  const pendingExamFees = examSummary?.pendingExamFees || (examSummary?.pendingExamFees === 0 ? 0 : 4600.0);
-  const totalExpenses = financialData?.totalExpenses || expenseSummary?.totalExpenses || 47650.0;
-  const thisMonthExpenses = financialData?.thisMonthExpenses || expenseSummary?.thisMonthExpenses || 47650.0;
-  const staffSalary = expenseSummary?.staffSalaryTotal || 34500.0;
-  const electricityBill = expenseSummary?.electricityTotal || 3750.0;
+  const totalFeesCollected = financialData?.totalFeesCollected || 0;
+  const pendingFees = financialData?.pendingFees || 0;
+  const examFeesCollected = examSummary?.collectedExamFees || 0;
+  const pendingExamFees = examSummary?.pendingExamFees || 0;
+  const totalExpenses = financialData?.totalExpenses || expenseSummary?.totalExpenses || 0;
+  const thisMonthExpenses = financialData?.thisMonthExpenses || expenseSummary?.thisMonthExpenses || 0;
+  const staffSalary = expenseSummary?.staffSalaryTotal || 0;
+  const electricityBill = expenseSummary?.electricityTotal || 0;
 
   // Formula: Remaining Balance = Total Fees Collected + Exam Fees Collected - Total Expenses
   const remainingBalance = totalFeesCollected + examFeesCollected - totalExpenses;
 
-  // Monthly trends for chart
-  const monthlyTrends = financialData?.monthlyTrends || [
-    { month: "Jan", income: 45000, expenses: 28000, balance: 17000 },
-    { month: "Feb", income: 48000, expenses: 29500, balance: 18500 },
-    { month: "Mar", income: 52000, expenses: 31000, balance: 21000 },
-    { month: "Apr", income: 54000, expenses: 30000, balance: 24000 },
-    { month: "May", income: 49000, expenses: 32000, balance: 17000 },
-    { month: "Jun", income: 58000, expenses: 34000, balance: 24000 },
-    { month: "Jul", income: 62000, expenses: 35500, balance: 26500 },
-    { month: "Aug", income: 65000, expenses: 36800, balance: 28200 },
-  ];
+  // Monthly trends for chart from real data
+  const monthlyTrends = financialData?.monthlyTrends && financialData.monthlyTrends.length > 0
+    ? financialData.monthlyTrends
+    : [];
 
   // Category breakdown data
-  const expensePieData = [
-    { name: "Staff Salary", value: staffSalary, color: "#8B5CF6" },
-    { name: "Electricity Bill", value: electricityBill, color: "#EC4899" },
-    { name: "Water & Maintenance", value: 3800, color: "#3B82F6" },
-    { name: "Internet / Wi-Fi", value: 2400, color: "#10B981" },
-    { name: "Labs & Stationary", value: 3200, color: "#F59E0B" },
+  const rawExpensePie = [
+    ...(staffSalary > 0 ? [{ name: "Staff Salary", value: staffSalary, color: "#8B5CF6" }] : []),
+    ...(electricityBill > 0 ? [{ name: "Electricity Bill", value: electricityBill, color: "#EC4899" }] : []),
+  ];
+  const expensePieData = rawExpensePie.length > 0 ? rawExpensePie : [
+    { name: "No Expenses Recorded", value: 0, color: "#CBD5E1" }
   ];
 
-  // Exam fee breakdown
-  const examFeeData = [
-    { name: "CSE Dept", collected: 4800, pending: 0 },
-    { name: "ECE Dept", collected: 0, pending: 3600 },
-    { name: "MBA Dept", collected: 3200, pending: 0 },
-    { name: "MECH Dept", collected: 0, pending: 2800 },
-    { name: "Data Science", collected: 2000, pending: 2000 },
-  ];
+  // Exam fee breakdown from real data
+  const examFeeData = (examSummary?.departmentBreakdown || []).map((d: any) => ({
+    name: d.name || d.department || "Dept",
+    collected: d.collected || 0,
+    pending: d.pending || 0,
+  }));
 
   return (
     <div className="space-y-6">

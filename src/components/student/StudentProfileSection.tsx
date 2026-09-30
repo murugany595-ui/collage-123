@@ -43,16 +43,16 @@ export const StudentProfileSection: React.FC<StudentProfileSectionProps> = ({
     );
   }
 
-  const sName = student?.name || "Student Name";
-  const sReg = student?.registerNumber || student?.rollNo || student?.id || "REG-UNKNOWN";
-  const sDept = (student?.department || "CSE").toUpperCase();
-  const sYear = student?.year || "3rd Year";
-  const sSection = student?.section || "Section A";
-  const sDob = student?.dateOfBirth || student?.dob || "2005-05-14";
+  const sName = student?.name || "Student";
+  const sReg = student?.registerNumber || student?.rollNo || student?.id || "N/A";
+  const sDept = (student?.department || "N/A").toUpperCase();
+  const sYear = student?.year || "N/A";
+  const sSection = student?.section || "N/A";
+  const sDob = student?.dateOfBirth || student?.dob || "Not provided";
   const pName = student?.parentName || student?.guardian || "Parent / Guardian";
-  const pPhone = student?.parentPhone || student?.guardianPhone || "+91 98401 23456";
+  const pPhone = student?.parentPhone || student?.guardianPhone || "Not provided";
   const sPhone = student?.phone || "Not provided";
-  const sEmail = student?.email || `${sReg.toLowerCase()}@brightwood.edu`;
+  const sEmail = student?.email || "Not provided";
 
   return (
     <div className="space-y-6 animate-fade-in">
