@@ -31,20 +31,20 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { StaffManagementPage } from "./pages/StaffManagementPage";
 import { CsvImportPage } from "./pages/CsvImportPage";
+import { FinancialAnalyticsPage } from "./pages/FinancialAnalyticsPage";
+import { CollegeChatbot } from "./components/chatbot/CollegeChatbot";
 
 // Dedicated Role Portal Views
 import { StudentPortalView } from "./pages/portals/StudentPortalView";
 import { ParentPortalView } from "./pages/portals/ParentPortalView";
 import { AccountantPortalView } from "./pages/portals/AccountantPortalView";
 
-// AI Assistant Chatbot
-import { CollegeChatbot } from "./components/chatbot/CollegeChatbot";
-import { ChatbotErrorBoundary } from "./components/chatbot/ChatbotErrorBoundary";
-
 const MainLayout: React.FC = () => {
   const { user, firebaseUser, activeRole, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<string>("dashboard");
-  const [selectedStudentId, setSelectedStudentId] = useState<string>("STU-1042");
+  const [selectedStudentId, setSelectedStudentId] = useState<string>(
+    () => localStorage.getItem("college_selected_student_id") || "STU028"
+  );
   const [mobileOpen, setMobileOpen] = useState<boolean>(false);
 
   // Modals state
@@ -90,6 +90,7 @@ const MainLayout: React.FC = () => {
     } else if (activeRole === "accountant") {
       const allowed = [
         "dashboard",
+        "financial-analytics",
         "fees",
         "expenses",
         "staff-management",
@@ -105,7 +106,10 @@ const MainLayout: React.FC = () => {
       }
     }
 
-    if (studentId) setSelectedStudentId(studentId);
+    if (studentId) {
+      setSelectedStudentId(studentId);
+      localStorage.setItem("college_selected_student_id", studentId);
+    }
     setActiveTab(targetTab);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -167,6 +171,15 @@ const MainLayout: React.FC = () => {
     // 3. Accountant Portal View
     if (activeRole === "accountant") {
       if (activeTab === "profile") return <ProfilePage onShowToast={showToast} />;
+      if (activeTab === "financial-analytics") {
+        return (
+          <FinancialAnalyticsPage
+            onCollectFee={handleCollectFee}
+            onNavigate={handleNavigate}
+            onShowToast={showToast}
+          />
+        );
+      }
       if (activeTab === "fees") {
         return (
           <FeesPage
@@ -368,6 +381,14 @@ const MainLayout: React.FC = () => {
             onNavigate={handleNavigate}
           />
         );
+      case "financial-analytics":
+        return (
+          <FinancialAnalyticsPage
+            onCollectFee={handleCollectFee}
+            onNavigate={handleNavigate}
+            onShowToast={showToast}
+          />
+        );
       case "payment-approval":
         return (
           <PaymentApprovalPage
@@ -492,16 +513,6 @@ const MainLayout: React.FC = () => {
         />
       )}
 
-      {/* Floating AI Chatbot protected by Error Boundary */}
-      <ChatbotErrorBoundary>
-        <CollegeChatbot
-          user={user}
-          activeRole={activeRole}
-          onNavigate={handleNavigate}
-          onShowToast={showToast}
-        />
-      </ChatbotErrorBoundary>
-
       {/* Toast Notification Banner */}
       {toast && (
         <Toast
@@ -510,6 +521,14 @@ const MainLayout: React.FC = () => {
           onClose={() => setToast(null)}
         />
       )}
+
+      {/* Floating College AI Assistant Chatbot */}
+      <CollegeChatbot
+        user={user}
+        activeRole={activeRole}
+        onNavigate={handleNavigate}
+        onShowToast={showToast}
+      />
     </div>
   );
 };

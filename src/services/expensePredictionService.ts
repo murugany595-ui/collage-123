@@ -28,6 +28,15 @@ export interface ExpenseInsightItem {
   metric?: string;
 }
 
+export interface ExpensePredictionChartItem {
+  month: string;
+  monthKey: string;
+  historical: number | null;
+  predicted: number | null;
+  trend: number | null;
+  isPrediction?: boolean;
+}
+
 export interface ExpensePredictionResult {
   hasEnoughData: boolean;
   dataStatus: "empty" | "single_month" | "limited" | "sufficient";
@@ -56,6 +65,7 @@ export interface ExpensePredictionResult {
   highestCategory: ExpenseCategoryStat | null;
   monthlyHistory: MonthlyExpenseRecord[];
   categoryBreakdown: ExpenseCategoryStat[];
+  chartData: ExpensePredictionChartItem[];
   monthlyTrendChartData: Array<{
     month: string;
     fullMonthName: string;
@@ -181,11 +191,14 @@ export function formatMonthName(monthKey: string, short = false): string {
 export function calculateExpensePrediction(
   expenses: ExpenseItem[] | any[]
 ): ExpensePredictionResult {
+  const safeExpenses = Array.isArray(expenses) ? expenses : [];
+
   // 1. Group actual valid expense records by monthKey
   const monthMap: Record<string, { total: number; count: number; categories: Record<string, number> }> = {};
   const globalCategoryMap: Record<string, number> = {};
 
-  for (const exp of expenses) {
+  for (const exp of safeExpenses) {
+    if (!exp) continue;
     const amount = Number(exp.amount_inr !== undefined ? exp.amount_inr : (exp.amount || 0));
     if (isNaN(amount) || amount <= 0) continue;
 
@@ -238,7 +251,8 @@ export function calculateExpensePrediction(
 
   // Category breakdown across all records
   const categoryCounts: Record<string, number> = {};
-  for (const exp of expenses) {
+  for (const exp of safeExpenses) {
+    if (!exp) continue;
     const cat = exp.category || "Other Expenses";
     categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
   }
@@ -334,6 +348,7 @@ export function calculateExpensePrediction(
       highestCategory: null,
       monthlyHistory: [],
       categoryBreakdown: [],
+      chartData: [],
       monthlyTrendChartData: [],
       actualVsPredictedChartData: [],
       insights: [
@@ -357,6 +372,25 @@ export function calculateExpensePrediction(
         actual: monthlyHistory[0].totalAmount,
         predicted: null,
         isPrediction: false,
+      },
+    ];
+
+    const singleMonthChartData: ExpensePredictionChartItem[] = [
+      {
+        month: monthlyHistory[0].shortMonth,
+        monthKey: monthlyHistory[0].monthKey,
+        historical: monthlyHistory[0].totalAmount,
+        predicted: null,
+        trend: monthlyHistory[0].totalAmount,
+        isPrediction: false,
+      },
+      {
+        month: `${formatMonthName(nextMonthKey, true)} (Forecast)`,
+        monthKey: nextMonthKey,
+        historical: null,
+        predicted: currentMonthExpense,
+        trend: currentMonthExpense,
+        isPrediction: true,
       },
     ];
 
@@ -406,6 +440,7 @@ export function calculateExpensePrediction(
       highestCategory,
       monthlyHistory,
       categoryBreakdown,
+      chartData: singleMonthChartData,
       monthlyTrendChartData,
       actualVsPredictedChartData: singleActualVsPredicted,
       insights: singleMonthInsights,
@@ -502,6 +537,28 @@ export function calculateExpensePrediction(
     monthKey: nextMonthKey,
     actual: null,
     predicted: predictedNextMonthExpense,
+    isPrediction: true,
+  });
+
+  // Build unified chartData for ComposedChart in Overview & Prediction views
+  const chartData: ExpensePredictionChartItem[] = monthlyHistory.map((m, idx) => {
+    const isLast = idx === monthlyHistory.length - 1;
+    return {
+      month: m.shortMonth,
+      monthKey: m.monthKey,
+      historical: m.totalAmount,
+      predicted: isLast ? m.totalAmount : null,
+      trend: m.totalAmount,
+      isPrediction: false,
+    };
+  });
+
+  chartData.push({
+    month: `${formatMonthName(nextMonthKey, true)} (Forecast)`,
+    monthKey: nextMonthKey,
+    historical: null,
+    predicted: predictedNextMonthExpense,
+    trend: predictedNextMonthExpense,
     isPrediction: true,
   });
 
@@ -613,6 +670,7 @@ export function calculateExpensePrediction(
     highestCategory,
     monthlyHistory,
     categoryBreakdown,
+    chartData,
     monthlyTrendChartData,
     actualVsPredictedChartData,
     insights,

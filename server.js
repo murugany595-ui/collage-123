@@ -696,7 +696,7 @@ CRITICAL SECURITY AND PRIVACY RULES:
       let fullText = null;
       let usedModel = null;
 
-      const callWithTimeout = (promise, ms = 4500) =>
+      const callWithTimeout = (promise, ms = 10000) =>
         Promise.race([
           promise,
           new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout generating AI response")), ms)),
@@ -713,7 +713,7 @@ CRITICAL SECURITY AND PRIVACY RULES:
                 temperature: 0.2,
               },
             }),
-            4500
+            10000
           );
           if (response?.text) {
             fullText = response.text;

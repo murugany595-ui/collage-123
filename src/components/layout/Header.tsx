@@ -134,14 +134,14 @@ export const Header: React.FC<HeaderProps> = ({
       profile: { title: "Institutional Profile", category: "Account" },
     };
 
-    return tabTitles[tab] || { title: "College Management ERP", category: "Portal" };
+    return tabTitles[tab] || { title: "College Finance & ERP", category: "Portal" };
   };
 
   const activeTitle = getTabTitle(activeTabName, activeRole);
   const roleInfo = ROLE_CONFIGS[activeRole] || ROLE_CONFIGS.admin;
 
   return (
-    <header className="sticky top-0 z-30 bg-white border-b border-slate-200/80 px-4 sm:px-6 py-3 shadow-xs">
+    <header className="sticky top-0 z-30 glass-header px-4 sm:px-6 py-3.5 liquid-specular">
       <div className="flex items-center justify-between gap-4">
         {/* Left Side: Mobile toggle + Breadcrumb / Title */}
         <div className="flex items-center gap-3">
@@ -152,7 +152,7 @@ export const Header: React.FC<HeaderProps> = ({
               e.stopPropagation();
               if (setMobileOpen) setMobileOpen(true);
             }}
-            className="p-2 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 active:scale-95 active:bg-slate-200 rounded-xl lg:hidden transition-all duration-150 focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 cursor-pointer"
+            className="p-2 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 active:scale-95 rounded-xl lg:hidden transition-all duration-150 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/30 cursor-pointer"
             aria-label="Open side navigation panel"
             title="Open navigation menu"
           >
@@ -160,11 +160,11 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
           <div>
             <div className="flex items-center gap-1.5 text-slate-400 text-xs font-medium">
-              <span>Our College</span>
-              <span>/</span>
-              <span>{activeTitle.category}</span>
+              <span>Finance ERP</span>
+              <span className="text-slate-300">/</span>
+              <span className="text-indigo-600 font-semibold">{activeTitle.category}</span>
             </div>
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+            <h2 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight leading-tight">
               {activeTitle.title}
             </h2>
           </div>
@@ -172,14 +172,14 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Side Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Academic Session Pill */}
-          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-xs font-semibold border border-blue-100">
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Session: 2025-2026</span>
+          {/* Academic Session */}
+          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100/70 backdrop-blur-md text-slate-700 rounded-xl text-xs font-semibold border border-slate-200/60 shadow-xs">
+            <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+            <span>AY 2025–2026</span>
           </div>
 
           {/* Current Role Badge */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-800 rounded-xl text-xs font-bold border border-slate-200">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 backdrop-blur-md text-slate-800 rounded-xl text-xs font-bold border border-slate-200/80 shadow-xs">
             {getRoleIcon(activeRole)}
             <span className="capitalize">{roleInfo.label}</span>
           </div>
@@ -188,22 +188,22 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition"
+              className="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-white/80 rounded-xl transition border border-transparent hover:border-slate-200/60 cursor-pointer"
               title="Notifications"
             >
               <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-600 rounded-full ring-2 ring-white" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-indigo-600 rounded-full ring-2 ring-white" />
             </button>
 
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 z-50 animate-fade-in">
-                <div className="flex items-center justify-between border-b pb-3 mb-2">
+              <div className="absolute right-0 mt-2 w-80 glass-card rounded-2xl shadow-2xl border border-slate-200/80 p-4 z-50 animate-fade-in">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-2">
                   <h4 className="text-xs font-bold text-slate-800">Notifications</h4>
-                  <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">Active</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-200/50">Active</span>
                 </div>
                 <div className="space-y-2">
                   {notifications.map((n) => (
-                    <div key={n.id} className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 transition text-xs">
+                    <div key={n.id} className="p-2.5 rounded-xl bg-white/70 hover:bg-white transition text-xs border border-slate-100">
                       <p className="font-semibold text-slate-800">{n.title}</p>
                       <div className="flex items-center gap-1 text-[10px] text-slate-400 mt-1">
                         <Clock className="w-3 h-3" />
@@ -220,16 +220,16 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 pl-2 border-l border-slate-200 hover:opacity-80 transition text-left"
+              className="flex items-center gap-2 pl-2 border-l border-slate-200 hover:opacity-85 transition text-left cursor-pointer"
             >
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-xs">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white font-bold flex items-center justify-center text-xs shadow-md shadow-indigo-600/20">
                 {user?.name ? user.name.slice(0, 2).toUpperCase() : "U"}
               </div>
               <div className="hidden lg:block text-left">
                 <p className="text-xs font-bold text-slate-800 leading-none truncate max-w-[130px]">
                   {user?.name || "User"}
                 </p>
-                <span className="text-[10px] text-slate-400 truncate block max-w-[130px]">
+                <span className="text-[10px] text-slate-400 truncate block max-w-[130px] mt-0.5">
                   {user?.email}
                 </span>
               </div>
@@ -237,11 +237,11 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
+              <div className="absolute right-0 mt-2 w-56 glass-card rounded-2xl shadow-2xl border border-slate-200/80 py-2 z-50 animate-fade-in">
                 <div className="px-4 py-2 border-b border-slate-100">
                   <p className="text-xs font-bold text-slate-800 truncate">{user?.name || "User"}</p>
                   <p className="text-[10px] text-slate-400 truncate">{user?.email}</p>
-                  <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700">
+                  <span className="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/50">
                     {roleInfo.label}
                   </span>
                 </div>
@@ -250,7 +250,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onNavigate("profile");
                     setShowUserMenu(false);
                   }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 transition font-medium"
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-indigo-50/60 hover:text-indigo-700 transition font-medium cursor-pointer"
                 >
                   <User className="w-4 h-4 text-slate-400" />
                   <span>My Profile & Settings</span>
@@ -260,7 +260,7 @@ export const Header: React.FC<HeaderProps> = ({
                     setShowUserMenu(false);
                     logout();
                   }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 transition font-bold border-t border-slate-100"
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-rose-600 hover:bg-rose-50 transition font-bold border-t border-slate-100 cursor-pointer"
                 >
                   <LogOut className="w-4 h-4 text-rose-500" />
                   <span>Sign Out</span>

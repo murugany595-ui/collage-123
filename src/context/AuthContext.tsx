@@ -7,7 +7,8 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
 } from "firebase/auth";
-import { auth } from "../config/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { auth, db } from "../config/firebase";
 import { UserRole, UserProfile } from "../types";
 import { User } from "../services/api";
 import { authService, userService, FirestoreUserProfile } from "../services/firebase";
@@ -161,10 +162,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch {}
         }
 
+        // Fallback: look up in Firestore by email if not found by UID
+        if (!firestoreProfile && email) {
+          try {
+            const qUsers = query(collection(db, "users"), where("email", "==", email));
+            const uSnap = await getDocs(qUsers);
+            if (!uSnap.empty) {
+              firestoreProfile = uSnap.docs[0].data();
+            } else {
+              const qAcc = query(collection(db, "accountancy"), where("email", "==", email));
+              const aSnap = await getDocs(qAcc);
+              if (!aSnap.empty) {
+                const accData = aSnap.docs[0].data();
+                firestoreProfile = {
+                  uid: fbUser.uid,
+                  name: accData.name || "Accountant",
+                  email,
+                  role: "accountant",
+                  department: accData.department || "Finance & Accounts",
+                };
+              }
+            }
+          } catch (lookupErr) {
+            console.warn("[AuthContext] Lookup by email notice:", lookupErr);
+          }
+        }
+
         if (firestoreProfile?.role) {
-          // If Firestore profile exists, respect its role unless administrative override applies
-          if (isAuthorizedAdmin(email, fbUser.uid)) {
-            determinedRole = "admin";
+          // If Firestore profile exists, respect its role
+          if (firestoreProfile.role === "accountant") {
+            determinedRole = "accountant";
+          } else if (isAuthorizedAdmin(email, fbUser.uid)) {
+            const savedPortal = localStorage.getItem("edufee_active_role");
+            determinedRole = savedPortal === "accountant" ? "accountant" : "admin";
           } else if (isAuthorizedAccountant(email, fbUser.uid)) {
             determinedRole = "accountant";
           } else {
@@ -329,7 +359,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string, requiredRole?: UserRole) => {
     isLoggingInRef.current = true;
     try {
-      setIsLoading(true);
       const session = await authService.login(email, password, requiredRole as any);
 
       localStorage.setItem("edufee_token", session.user.uid);
@@ -364,6 +393,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } as any);
       }
     } catch (err: any) {
+      console.error("[AuthContext] Login error:", err);
       const msg = err?.message || "";
       if (msg.includes("Access denied")) {
         throw new Error(msg);
@@ -371,14 +401,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error(formatAuthError(err, false));
     } finally {
       isLoggingInRef.current = false;
-      setIsLoading(false);
     }
   };
 
   const loginStudent = async (registerNumber: string, dob: string) => {
     isLoggingInRef.current = true;
     try {
-      setIsLoading(true);
       const session = await authService.loginStudent(registerNumber, dob);
 
       localStorage.setItem("edufee_token", session.user.uid);
@@ -416,7 +444,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error(err?.message || "Invalid Registration ID or Date of Birth.");
     } finally {
       isLoggingInRef.current = false;
-      setIsLoading(false);
     }
   };
 

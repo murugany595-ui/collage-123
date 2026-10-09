@@ -214,11 +214,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     confidenceLevel,
     confidenceBadge,
     highestCategory,
-    monthlyHistory,
-    categoryBreakdown,
-    monthlyTrendChartData,
-    actualVsPredictedChartData,
-    insights,
+    monthlyHistory = [],
+    categoryBreakdown = [],
+    monthlyTrendChartData = [],
+    actualVsPredictedChartData = [],
+    insights = [],
     summaryNote,
   } = analytics;
 
@@ -489,18 +489,18 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       {/* =========================================================================
           EXECUTIVE HEADER: FINANCE DATA ANALYTICS & EXPENSE PREDICTION SYSTEM
           ========================================================================= */}
-      <div className="glass-card p-6 sm:p-7 rounded-3xl border border-violet-100/80 bg-gradient-to-r from-white via-violet-50/25 to-indigo-50/20 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
+      <div className="glass-card p-6 sm:p-7 rounded-3xl border border-indigo-100/70 bg-gradient-to-r from-white via-indigo-50/15 to-slate-50/40 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 liquid-specular">
         <div>
-          <div className="flex flex-wrap items-center gap-2.5 mb-1.5">
-            <span className="p-2 rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/20">
+          <div className="flex flex-wrap items-center gap-2.5 mb-2">
+            <span className="p-2 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/25">
               <Scale className="w-5 h-5" />
             </span>
-            <span className="px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-violet-100/80 text-violet-800 border border-violet-200/60">
+            <span className="px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200/60">
               Finance Analytics Intelligence
             </span>
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-700 text-[11px] font-bold">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Live Firebase Sync</span>
+              <span>Live Firestore Sync</span>
             </div>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
@@ -516,25 +516,34 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           <button
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:text-violet-600 hover:bg-violet-50/50 text-xs font-bold shadow-xs transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-white/90 border border-slate-200 text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/50 text-xs font-bold shadow-xs transition-all cursor-pointer"
             title="Refresh Ledger and re-calculate predictive model"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-violet-600" : ""}`} />
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-indigo-600" : ""}`} />
             <span className="hidden sm:inline">Sync Data</span>
           </button>
 
           <button
+            onClick={() => onNavigate("financial-analytics")}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:text-indigo-800 hover:bg-indigo-100/60 text-xs font-bold shadow-xs transition-all cursor-pointer"
+            title="Open institutional fee collection trends & pending dues analytics"
+          >
+            <TrendingUp className="w-4 h-4 text-indigo-600" />
+            <span>Financial Analytics</span>
+          </button>
+
+          <button
             onClick={() => onNavigate("expenses")}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:text-violet-600 hover:bg-violet-50/50 text-xs font-bold shadow-xs transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/90 border border-slate-200 text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/50 text-xs font-bold shadow-xs transition-all cursor-pointer"
             title="Open comprehensive expense management ledger"
           >
-            <Receipt className="w-4 h-4 text-violet-600" />
+            <Receipt className="w-4 h-4 text-indigo-600" />
             <span>Expense Management</span>
           </button>
 
           <button
             onClick={() => setIsMonthlyReportOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/50 text-xs font-bold shadow-xs transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/90 border border-slate-200 text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/50 text-xs font-bold shadow-xs transition-all cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4 text-indigo-600" />
             <span>Monthly Ledger</span>
@@ -542,7 +551,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
           <button
             onClick={handleOpenAdd}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-extrabold shadow-md shadow-violet-500/25 hover:from-violet-700 hover:to-indigo-700 active:scale-98 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-indigo-500 text-white text-xs font-extrabold shadow-md shadow-indigo-600/30 hover:from-indigo-700 hover:to-indigo-600 active:scale-98 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Add Expense</span>
@@ -556,7 +565,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       <div>
         <div className="flex items-center justify-between mb-3 px-1">
           <div className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-violet-600" />
+            <BarChart3 className="w-4 h-4 text-indigo-600" />
             <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
               1. Expense Analytics Overview
             </h2>
@@ -568,7 +577,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Card 1: Total Expenses */}
-          <div className="glass-card p-5 rounded-3xl border border-slate-200/80 bg-white shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+          <div className="glass-card glass-card-hover liquid-specular p-5 rounded-3xl border border-slate-200/80 bg-white/90 shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 Total Expenses
@@ -578,7 +587,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               </div>
             </div>
             <div className="mt-3">
-              <p className="text-2xl font-black text-slate-900 flex items-center gap-0.5">
+              <p className="text-2xl font-black text-slate-900 flex items-center gap-0.5 tabular-nums">
                 <IndianRupee className="w-5 h-5 text-slate-600" />
                 {totalExpenses.toLocaleString("en-IN")}
               </p>
@@ -590,7 +599,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           </div>
 
           {/* Card 2: Current Month Expense */}
-          <div className="glass-card p-5 rounded-3xl border border-blue-100/80 bg-gradient-to-br from-white via-blue-50/20 to-sky-50/30 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+          <div className="glass-card glass-card-hover liquid-specular p-5 rounded-3xl border border-blue-100/80 bg-gradient-to-br from-white via-blue-50/20 to-sky-50/30 shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">
                 Current Month
@@ -600,7 +609,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               </div>
             </div>
             <div className="mt-3">
-              <p className="text-2xl font-black text-slate-900 flex items-center gap-0.5">
+              <p className="text-2xl font-black text-slate-900 flex items-center gap-0.5 tabular-nums">
                 <IndianRupee className="w-5 h-5 text-blue-600" />
                 {currentMonthExpense.toLocaleString("en-IN")}
               </p>
@@ -614,7 +623,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           </div>
 
           {/* Card 3: Previous Month Expense */}
-          <div className="glass-card p-5 rounded-3xl border border-slate-200/80 bg-white shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+          <div className="glass-card glass-card-hover liquid-specular p-5 rounded-3xl border border-slate-200/80 bg-white/90 shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 Previous Month
@@ -624,7 +633,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               </div>
             </div>
             <div className="mt-3">
-              <p className="text-2xl font-black text-slate-900 flex items-center gap-0.5">
+              <p className="text-2xl font-black text-slate-900 flex items-center gap-0.5 tabular-nums">
                 <IndianRupee className="w-5 h-5 text-slate-500" />
                 {previousMonthExpense.toLocaleString("en-IN")}
               </p>
@@ -638,7 +647,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           </div>
 
           {/* Card 4: Expense Growth % */}
-          <div className="glass-card p-5 rounded-3xl border border-slate-200/80 bg-white shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+          <div className="glass-card glass-card-hover liquid-specular p-5 rounded-3xl border border-slate-200/80 bg-white/90 shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 Expense Growth %

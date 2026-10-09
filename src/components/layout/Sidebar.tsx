@@ -25,6 +25,7 @@ import {
   Bell,
   Briefcase,
   FileSpreadsheet,
+  TrendingUp,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { ROLE_CONFIGS, UserRole } from "../../types";
@@ -83,7 +84,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           items: [
             { id: "fees", label: "Fees Details", icon: <CreditCard className="w-4 h-4" /> },
             { id: "profile", label: "General Student Profile", icon: <User className="w-4 h-4" /> },
-            { id: "chatbot", label: "AI Fee Chatbot", icon: <MessageSquare className="w-4 h-4" /> },
             { id: "notifications", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
           ],
         },
@@ -116,6 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           title: "Bursar Operations",
           items: [
             { id: "dashboard", label: "Finance Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+            { id: "financial-analytics", label: "Financial Analytics", icon: <TrendingUp className="w-4 h-4" /> },
             { id: "expenses", label: "Expense Management", icon: <Receipt className="w-4 h-4" /> },
             { id: "staff-management", label: "Staff & Salaries", icon: <Briefcase className="w-4 h-4" /> },
             { id: "fees", label: "Collect Student Fees", icon: <CreditCard className="w-4 h-4" /> },
@@ -182,18 +183,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         title: "Finance & Operations",
         items: [
           { id: "dashboard", label: "Finance Analytics & Prediction", icon: <LayoutDashboard className="w-4 h-4" /> },
+          { id: "financial-analytics", label: "Financial Analytics", icon: <TrendingUp className="w-4 h-4" /> },
           { id: "expenses", label: "Expense Management", icon: <Receipt className="w-4 h-4" /> },
           { id: "staff-management", label: "Staff & Salary Management", icon: <Briefcase className="w-4 h-4" /> },
           { id: "fees", label: "Fee Management", icon: <CreditCard className="w-4 h-4" /> },
           { id: "csv-import", label: "CSV Datasets & Sync", icon: <FileSpreadsheet className="w-4 h-4" /> },
-        ],
-      },
-      {
-        title: "Fee Billing & Accounts",
-        items: [
-          { id: "generate-monthly-fees", label: "Generate Monthly Fees", icon: <CalendarPlus className="w-4 h-4" /> },
-          { id: "payment-approval", label: "Payment Approvals", icon: <CheckSquare className="w-4 h-4" /> },
-          { id: "fee-categories", label: "Fee Categories", icon: <Layers className="w-4 h-4" /> },
         ],
       },
       {
@@ -209,7 +203,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {
         title: "Analytics & System",
         items: [
-          { id: "reports", label: "Reports & Analytics", icon: <BarChart3 className="w-4 h-4" /> },
           { id: "users", label: "User Management", icon: <ShieldCheck className="w-4 h-4" /> },
           { id: "audit-logs", label: "Security & Audit Logs", icon: <ShieldAlert className="w-4 h-4" /> },
           { id: "settings", label: "Admin Settings", icon: <Settings className="w-4 h-4" /> },
@@ -219,7 +212,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ];
   };
 
-  const navSections = getNavSections();
+  const navSections = getNavSections().filter((section) => section.items && section.items.length > 0);
   const roleLabel = ROLE_CONFIGS[activeRole]?.label || "Administrator";
 
   return (
@@ -243,19 +236,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <aside
         id="main-sidebar-panel"
         aria-label="Main Navigation Side Panel"
-        className={`fixed lg:static top-0 bottom-0 left-0 z-50 w-64 flex-shrink-0 bg-[#1E40AF] text-white flex flex-col will-change-transform transform-gpu transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] lg:translate-x-0 ${
+        className={`fixed lg:static top-0 bottom-0 left-0 z-50 w-64 flex-shrink-0 glass-sidebar-dark text-slate-200 flex flex-col will-change-transform transform-gpu transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] lg:translate-x-0 ${
           mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         {/* Brand Header */}
-        <div className="flex items-center justify-between px-5 py-4 sm:px-6 sm:py-5 border-b border-blue-600/60 bg-[#1D3BB0]">
+        <div className="flex items-center justify-between px-5 py-4 sm:px-6 sm:py-5 border-b border-white/[0.08] bg-slate-900/40 relative liquid-specular">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-white text-blue-700 flex items-center justify-center font-black shadow-md text-base flex-shrink-0">
-              <BookOpen className="w-5 h-5 text-blue-700" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center font-black shadow-lg shadow-indigo-600/30 text-base flex-shrink-0 border border-indigo-400/30">
+              <BookOpen className="w-5 h-5 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="font-extrabold text-white text-lg tracking-tight leading-none truncate">Our College</h1>
-              <p className="text-[11px] text-blue-200 mt-1 font-medium truncate">College Management ERP</p>
+              <h1 className="font-extrabold text-white text-base tracking-tight leading-none truncate">Our College</h1>
+              <p className="text-[11px] text-slate-400 mt-1 font-medium truncate">Finance & Operations ERP</p>
             </div>
           </div>
 
@@ -267,7 +260,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               e.stopPropagation();
               handleCloseMobile();
             }}
-            className="lg:hidden p-2 text-blue-200 hover:text-white hover:bg-blue-700/70 active:scale-90 active:bg-blue-800 focus:outline-hidden focus:ring-2 focus:ring-white/40 rounded-xl transition-all duration-150 flex items-center justify-center cursor-pointer flex-shrink-0"
+            className="lg:hidden p-2 text-slate-400 hover:text-white hover:bg-white/10 active:scale-95 focus:outline-hidden focus:ring-2 focus:ring-white/20 rounded-xl transition-all duration-150 flex items-center justify-center cursor-pointer flex-shrink-0"
             aria-label="Close side panel"
             title="Close side panel (Esc)"
           >
@@ -279,7 +272,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scrollbar-thin">
           {navSections.map((section, idx) => (
             <div key={idx} className="space-y-1">
-              <p className="px-3 text-[10px] font-bold text-blue-300 uppercase tracking-wider mb-1.5">
+              <p className="px-3 text-[10px] font-bold text-slate-400/80 uppercase tracking-wider mb-2">
                 {section.title}
               </p>
               {section.items.map((item) => {
@@ -293,17 +286,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       handleTabChange(item.id);
                       handleCloseMobile();
                     }}
-                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all duration-200 cursor-pointer ${
                       isActive
-                        ? "bg-white text-blue-800 shadow-md font-bold"
-                        : "text-blue-100 hover:bg-blue-700/60 hover:text-white"
+                        ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-600/25 font-bold border border-indigo-400/30"
+                        : "text-slate-300 hover:bg-white/[0.07] hover:text-white font-medium"
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={isActive ? "text-blue-700" : "text-blue-200"}>{item.icon}</span>
+                      <span className={isActive ? "text-white" : "text-slate-400"}>{item.icon}</span>
                       <span>{item.label}</span>
                     </div>
-                    {isActive && <ChevronRight className="w-3.5 h-3.5 text-blue-600" />}
+                    {isActive && <ChevronRight className="w-3.5 h-3.5 text-indigo-200" />}
                   </button>
                 );
               })}
@@ -312,15 +305,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* User Footer Profile */}
-        <div className="p-3 border-t border-blue-600/60 bg-[#19359B]">
-          <div className="flex items-center justify-between p-2 rounded-xl bg-blue-800/50">
+        <div className="p-3 border-t border-white/[0.08] bg-slate-950/80">
+          <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/80 border border-white/[0.05]">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-blue-500 text-white font-bold flex items-center justify-center text-xs flex-shrink-0 border border-blue-300/40">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white font-bold flex items-center justify-center text-xs flex-shrink-0 border border-indigo-400/30 shadow-xs">
                 {user?.name ? user.name.slice(0, 2).toUpperCase() : "U"}
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-white truncate">{user?.name || "User"}</p>
-                <span className="text-[10px] text-blue-200 block truncate">
+                <span className="text-[10px] text-slate-400 block truncate">
                   {roleLabel}
                 </span>
               </div>
@@ -328,7 +321,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               onClick={() => logout()}
               title="Sign Out"
-              className="p-1.5 text-blue-200 hover:text-white hover:bg-blue-700 rounded-lg transition flex-shrink-0"
+              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition flex-shrink-0 cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
             </button>

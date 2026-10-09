@@ -450,6 +450,14 @@ export const expenseService = {
       .filter((e) => e.category !== "Staff Salary" && e.category !== "Electricity Bill" && e.category !== "Electricity")
       .reduce((acc, e) => acc + (e.amount || 0), 0);
 
+    const currentMonthKey = new Date().toISOString().slice(0, 7);
+    const thisMonthExpenses = expenses
+      .filter((e) => (e.month && e.month === currentMonthKey) || (e.date && String(e.date).startsWith(currentMonthKey)))
+      .reduce((acc, e) => acc + (e.amount || 0), 0);
+    const pendingExpenses = expenses
+      .filter((e) => e.payment_status === "Pending")
+      .reduce((acc, e) => acc + (e.amount || 0), 0);
+
     const byCategory: Record<string, number> = {
       "Staff Salary": salaryTotal,
       "Electricity Bill": ebTotal,
@@ -462,11 +470,18 @@ export const expenseService = {
 
     return {
       totalExpenses,
+      thisMonthExpenses,
+      pendingExpenses,
       salaryTotal,
+      staffSalaryTotal: salaryTotal,
       ebTotal,
+      electricityTotal: ebTotal,
       otherTotal,
+      otherExpenses: otherTotal,
       count: expenses.length,
+      totalCount: expenses.length,
       byCategory,
+      categoryTotals: byCategory,
     };
   },
 
@@ -474,14 +489,26 @@ export const expenseService = {
     if (!auth.currentUser) {
       return {
         totalRevenue: 0,
+        totalFeesCollected: 0,
+        pendingFees: 0,
+        examFeesCollected: 0,
+        pendingExamFees: 0,
         totalExpenses: 0,
+        thisMonthExpenses: 0,
+        staffSalaryTotal: 0,
+        electricityTotal: 0,
+        remainingBalance: 0,
         netBalance: 0,
+        monthlyIncome: 0,
+        monthlyExpenses: 0,
+        monthlyBalance: 0,
         feeCollectionRate: "0%",
         totalBilled: 0,
         totalPending: 0,
         salaryTotal: 0,
         ebTotal: 0,
         otherTotal: 0,
+        monthlyTrends: [],
       };
     }
     const feeSummary = await feesService.getSummary().catch(() => ({
@@ -492,25 +519,53 @@ export const expenseService = {
     }));
     const expenseSummary = await this.getExpenseSummary().catch(() => ({
       totalExpenses: 0,
+      thisMonthExpenses: 0,
+      staffSalaryTotal: 0,
+      electricityTotal: 0,
       salaryTotal: 0,
       ebTotal: 0,
       otherTotal: 0,
     }));
 
-    const totalRevenue = feeSummary.totalCollected;
-    const totalExpenses = expenseSummary.totalExpenses;
+    const totalRevenue = feeSummary.totalCollected || 0;
+    const totalExpenses = expenseSummary.totalExpenses || 0;
     const netBalance = totalRevenue - totalExpenses;
+
+    const monthlyTotals = await this.getMonthlyExpenseTotals().catch(() => []);
+    const monthlyTrends = monthlyTotals.map((mt) => {
+      const [y] = mt.month.split("-");
+      const incomePortion = Math.round(totalRevenue / (monthlyTotals.length || 1));
+      return {
+        month: mt.monthName || mt.month,
+        year: parseInt(y, 10) || new Date().getFullYear(),
+        income: incomePortion,
+        expenses: mt.total,
+        balance: incomePortion - mt.total,
+      };
+    });
 
     return {
       totalRevenue,
+      totalFeesCollected: totalRevenue,
+      pendingFees: feeSummary.totalPending || 0,
+      examFeesCollected: 0,
+      pendingExamFees: 0,
       totalExpenses,
+      thisMonthExpenses: expenseSummary.thisMonthExpenses || 0,
+      staffSalaryTotal: expenseSummary.staffSalaryTotal || expenseSummary.salaryTotal || 0,
+      electricityTotal: expenseSummary.electricityTotal || expenseSummary.ebTotal || 0,
+      remainingBalance: netBalance,
       netBalance,
-      feeCollectionRate: feeSummary.collectionEfficiency,
-      totalBilled: feeSummary.totalBilled,
-      totalPending: feeSummary.totalPending,
-      salaryTotal: expenseSummary.salaryTotal,
-      ebTotal: expenseSummary.ebTotal,
-      otherTotal: expenseSummary.otherTotal,
+      monthlyIncome: totalRevenue,
+      monthlyExpenses: totalExpenses,
+      monthlyBalance: netBalance,
+      feeCollectionRate: feeSummary.collectionEfficiency || "0%",
+      totalBilled: feeSummary.totalBilled || 0,
+      totalPending: feeSummary.totalPending || 0,
+      salaryTotal: expenseSummary.salaryTotal || 0,
+      ebTotal: expenseSummary.ebTotal || 0,
+      otherTotal: expenseSummary.otherTotal || 0,
+      monthlyTrends: monthlyTrends || [],
     };
   },
 };

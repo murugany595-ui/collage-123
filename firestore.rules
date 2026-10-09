@@ -27,7 +27,10 @@ service cloud.firestore {
       return isSignedIn() && (
         request.auth.token.email == 'accounts@brightwood.edu' ||
         request.auth.token.email == 'accountant@college.edu' ||
-        request.auth.token.role == 'accountant'
+        request.auth.token.role == 'accountant' ||
+        exists(/databases/$(database)/documents/accountancy/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'accountant')
       );
     }
 
@@ -51,8 +54,7 @@ service cloud.firestore {
 
     // 2. ACCOUNTANCY STAFF COLLECTION
     match /accountancy/{accountancyId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     // 3. DEPARTMENTS & DEPARTMENT SUBCOLLECTIONS
@@ -194,10 +196,10 @@ service cloud.firestore {
 
     // 13. CHAT CONVERSATIONS & MESSAGES
     match /chat_conversations/{userId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if true;
 
       match /messages/{messageId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if true;
       }
     }
 

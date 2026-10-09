@@ -174,7 +174,8 @@ export const ElectricityBillSection: React.FC<ElectricityBillSectionProps> = ({
   };
 
   // Filter bills
-  const filteredBills = bills.filter((b) => {
+  const safeBills = Array.isArray(bills) ? bills : [];
+  const filteredBills = safeBills.filter((b) => {
     const q = searchQuery.toLowerCase();
     const matchesQ =
       !q ||
@@ -428,7 +429,7 @@ export const ElectricityBillSection: React.FC<ElectricityBillSectionProps> = ({
 
             <form onSubmit={handleSubmitBill} className="p-6 space-y-4.5 max-h-[80vh] overflow-y-auto">
               {/* Existing Recorded Meters Picker */}
-              {!editingBill && existingMeters.length > 0 && (
+              {!editingBill && (existingMeters || []).length > 0 && (
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                     Select Previously Logged Meter

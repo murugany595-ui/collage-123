@@ -240,7 +240,8 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
   };
 
   // Filtered Expenses List for the Table
-  const filteredExpenses = expenses.filter((e) => {
+  const safeExpenses = Array.isArray(expenses) ? expenses : [];
+  const filteredExpenses = safeExpenses.filter((e) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch =
       !q ||
@@ -354,7 +355,7 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
           }`}
         >
           <FileText className="w-4 h-4" />
-          All Expenses Ledger ({expenses.length})
+          All Expenses Ledger ({(expenses || []).length})
         </button>
 
         <button
@@ -366,7 +367,7 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
           }`}
         >
           <Users className="w-4 h-4" />
-          Staff Salaries ({salaries.length})
+          Staff Salaries ({(salaries || []).length})
         </button>
 
         <button
@@ -378,7 +379,7 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
           }`}
         >
           <Zap className="w-4 h-4" />
-          Electricity Bills ({electricityBills.length})
+          Electricity Bills ({(electricityBills || []).length})
         </button>
       </div>
 

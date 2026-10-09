@@ -127,6 +127,13 @@ export const AccountantPortalView: React.FC<AccountantPortalViewProps> = ({
             <span>Manage Expenses</span>
           </button>
           <button
+            onClick={() => onNavigate("financial-analytics")}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black shadow-md transition"
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span>Financial Analytics</span>
+          </button>
+          <button
             onClick={() => onCollectFee({})}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-black shadow-md transition"
           >
@@ -145,28 +152,28 @@ export const AccountantPortalView: React.FC<AccountantPortalViewProps> = ({
 
       {/* 4 Financial Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-bold text-slate-400 uppercase">Today's Collections</span>
-          <h3 className="text-2xl font-black text-emerald-600 mt-1">
+        <div className="glass-card glass-card-hover liquid-specular p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Today's Collections</span>
+          <h3 className="text-2xl font-black text-emerald-600 mt-1 tabular-nums">
             ₹{stats.todayCollections.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
           </h3>
-          <p className="text-xs text-slate-400 mt-1">{stats.todayCount} transactions recorded</p>
+          <p className="text-xs text-slate-400 mt-1 tabular-nums">{stats.todayCount} transactions recorded</p>
         </div>
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-bold text-slate-400 uppercase">Cash in Register</span>
-          <h3 className="text-2xl font-black text-slate-900 mt-1">
+        <div className="glass-card glass-card-hover liquid-specular p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Cash in Register</span>
+          <h3 className="text-2xl font-black text-slate-900 mt-1 tabular-nums">
             ₹{stats.cashDrawer.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
           </h3>
           <p className="text-xs text-slate-400 mt-1">Active collection sum</p>
         </div>
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-bold text-slate-400 uppercase">Pending Approvals</span>
-          <h3 className="text-2xl font-black text-amber-600 mt-1">{stats.pendingApprovalsCount} Online Txns</h3>
+        <div className="glass-card glass-card-hover liquid-specular p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Approvals</span>
+          <h3 className="text-2xl font-black text-amber-600 mt-1 tabular-nums">{stats.pendingApprovalsCount} Online Txns</h3>
           <p className="text-xs text-slate-400 mt-1">Awaiting verification</p>
         </div>
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-bold text-slate-400 uppercase">Month-to-Date Revenue</span>
-          <h3 className="text-2xl font-black text-blue-600 mt-1">
+        <div className="glass-card glass-card-hover liquid-specular p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Month-to-Date Revenue</span>
+          <h3 className="text-2xl font-black text-indigo-600 mt-1 tabular-nums">
             ₹{stats.mtdRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
           </h3>
           <p className="text-xs text-slate-400 mt-1">Total revenue collected</p>
@@ -203,6 +210,16 @@ export const AccountantPortalView: React.FC<AccountantPortalViewProps> = ({
           </div>
 
           <div className="pt-4 border-t border-slate-100 space-y-2">
+            <button
+              onClick={() => onNavigate("financial-analytics")}
+              className="w-full flex items-center justify-between p-3 rounded-xl bg-indigo-50/80 hover:bg-indigo-100 text-xs font-bold text-indigo-900 border border-indigo-100 transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-indigo-600" />
+                <span>Financial Analytics & Trends</span>
+              </div>
+              <ArrowUpRight className="w-4 h-4 text-indigo-400" />
+            </button>
             <button
               onClick={() => onNavigate("payment-approval")}
               className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition cursor-pointer"

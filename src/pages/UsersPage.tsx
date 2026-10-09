@@ -21,6 +21,7 @@ import { useAuth } from "../context/AuthContext";
 import { UserRole, ROLE_CONFIGS } from "../types";
 import { api } from "../services/api";
 import { PasswordStrengthIndicator } from "../components/common/PasswordStrengthIndicator";
+import { createFirebaseAuthUser } from "../config/firebase";
 
 export interface UsersPageProps {
   onShowToast?: (msg: string, type: "success" | "error" | "info") => void;
@@ -65,19 +66,63 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast = () => {} }) 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const uid = `USR-${Date.now().toString().slice(-6)}`;
+      const cleanEmail = newEmail.trim().toLowerCase();
+      if (!cleanEmail) {
+        onShowToast("Email is required.", "error");
+        return;
+      }
+      if ((newRole === "accountant" || newRole === "admin") && !newPassword) {
+        onShowToast("An initial password of at least 6 characters is required for login.", "error");
+        return;
+      }
+      if (newPassword && newPassword.trim().length < 6) {
+        onShowToast("Initial password must be at least 6 characters for Firebase Authentication.", "error");
+        return;
+      }
+
+      let uid = `USR-${Date.now().toString().slice(-6)}`;
+
+      // Provision Firebase Auth account if password provided
+      if (newPassword) {
+        try {
+          const authRes = await createFirebaseAuthUser(cleanEmail, newPassword.trim(), newName.trim());
+          if (authRes?.uid) {
+            uid = authRes.uid;
+          }
+        } catch (authErr: any) {
+          console.warn("[UsersPage] Firebase auth provisioning notice:", authErr);
+        }
+      }
+
       const newU = {
         uid,
         id: uid,
         name: newName,
-        email: newEmail,
+        email: cleanEmail,
         role: newRole,
         department: newDept,
         status: "Active",
       };
       await api.users.create(newU);
+
+      // If user is accountant, also register in dedicated accountancy collection
+      if (newRole === "accountant") {
+        await api.accountancy.createAccountant({
+          id: uid,
+          accountancyId: uid,
+          name: newName,
+          email: cleanEmail,
+          password: newPassword ? newPassword.trim() : undefined,
+          role: "accountant",
+          department: newDept,
+          status: "Active",
+        }).catch((accErr: any) => {
+          console.warn("[UsersPage] Accountancy collection mirror notice:", accErr);
+        });
+      }
+
       setShowAddModal(false);
-      onShowToast(`User account record for ${newName} created in Firebase!`, "success");
+      onShowToast(`User account record for ${newName} created successfully!`, "success");
       setNewName("");
       setNewEmail("");
       setNewPassword("");
@@ -307,10 +352,13 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast = () => {} }) 
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Initial Password</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Initial Password {newRole === "accountant" || newRole === "admin" ? <span className="text-rose-500">*</span> : <span className="text-slate-400 font-normal">(optional)</span>}
+                </label>
                 <input
                   type="password"
-                  placeholder="Set initial password (optional)"
+                  required={newRole === "accountant" || newRole === "admin"}
+                  placeholder={newRole === "accountant" || newRole === "admin" ? "Minimum 6 characters for login" : "Set initial password (optional)"}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 font-mono"

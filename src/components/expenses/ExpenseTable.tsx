@@ -65,8 +65,10 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
 
   const itemsPerPage = 10;
 
+  const safeExpenses = Array.isArray(expenses) ? expenses : [];
+
   // Sorting
-  const sortedExpenses = [...expenses].sort((a, b) => {
+  const sortedExpenses = [...safeExpenses].sort((a, b) => {
     if (sortField === "amount") {
       return sortOrder === "asc" ? a.amount - b.amount : b.amount - a.amount;
     }
@@ -145,7 +147,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
               Institutional Expense Records
             </h3>
             <p className="text-xs text-slate-500">
-              Complete audit table of logged expenses, invoices, and vouchers ({expenses.length} records found)
+              Complete audit table of logged expenses, invoices, and vouchers ({safeExpenses.length} records found)
             </p>
           </div>
 
@@ -406,13 +408,13 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
         <p>
           Showing{" "}
           <span className="font-bold text-slate-700">
-            {expenses.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}
+            {safeExpenses.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}
           </span>{" "}
           to{" "}
           <span className="font-bold text-slate-700">
-            {Math.min(currentPage * itemsPerPage, expenses.length)}
+            {Math.min(currentPage * itemsPerPage, safeExpenses.length)}
           </span>{" "}
-          of <span className="font-bold text-slate-700">{expenses.length}</span> expenses
+          of <span className="font-bold text-slate-700">{safeExpenses.length}</span> expenses
         </p>
 
         <div className="flex items-center gap-2">

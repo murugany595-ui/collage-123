@@ -16,7 +16,6 @@ import { FeeRecord, feesService } from "../../services/firebase/feesService";
 import { NotificationItem, notificationService } from "../../services/firebase/notificationService";
 import { StudentFeesSection } from "../../components/student/StudentFeesSection";
 import { StudentProfileSection } from "../../components/student/StudentProfileSection";
-import { StudentChatbotSection } from "../../components/student/StudentChatbotSection";
 import { StudentNotificationsSection } from "../../components/student/StudentNotificationsSection";
 
 export interface StudentPortalViewProps {
@@ -27,7 +26,7 @@ export interface StudentPortalViewProps {
   onShowToast?: (msg: string, type: "success" | "error" | "info") => void;
 }
 
-export type StudentDashboardSection = "fees" | "profile" | "chatbot" | "notifications";
+export type StudentDashboardSection = "fees" | "profile" | "notifications";
 
 export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
   activeTab = "fees",
@@ -51,8 +50,6 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
   useEffect(() => {
     if (activeTab === "profile" || activeTab === "student-profile") {
       setSelectedSection("profile");
-    } else if (activeTab === "chatbot" || activeTab === "student-chatbot") {
-      setSelectedSection("chatbot");
     } else if (activeTab === "notifications" || activeTab === "student-notifications") {
       setSelectedSection("notifications");
     } else if (activeTab === "fees" || activeTab === "student-fees" || activeTab === "dashboard") {
@@ -316,30 +313,17 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
           <span>2. General Student Profile</span>
         </button>
 
-        {/* Section 3: Chatbot */}
-        <button
-          onClick={() => handleTabChange("chatbot")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            selectedSection === "chatbot"
-              ? "bg-white text-violet-700 shadow-xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-          }`}
-        >
-          <MessageSquare className="w-4 h-4 text-violet-600" />
-          <span>3. Chatbot</span>
-        </button>
-
-        {/* Section 4: Notifications */}
+        {/* Section 3: Notifications */}
         <button
           onClick={() => handleTabChange("notifications")}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer relative ${
             selectedSection === "notifications"
-              ? "bg-white text-purple-700 shadow-xs"
+              ? "bg-white text-indigo-700 shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
           }`}
         >
-          <Bell className="w-4 h-4 text-purple-600" />
-          <span>4. Notifications</span>
+          <Bell className="w-4 h-4 text-indigo-600" />
+          <span>3. Notifications</span>
           {unreadNotifsCount > 0 && (
             <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-black shrink-0">
               {unreadNotifsCount}
@@ -369,20 +353,6 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
 
       {selectedSection === "profile" && (
         <StudentProfileSection student={studentProfile} loading={loadingStudent} />
-      )}
-
-      {selectedSection === "chatbot" && (
-        <StudentChatbotSection
-          user={user}
-          student={studentProfile}
-          fees={fees}
-          totalFees={totalFees}
-          paidAmount={paidAmount}
-          pendingAmount={pendingAmount}
-          dueDate={earliestDueDate}
-          onNavigateToFees={() => handleTabChange("fees")}
-          onShowToast={onShowToast}
-        />
       )}
 
       {selectedSection === "notifications" && (

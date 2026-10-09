@@ -478,7 +478,51 @@ export const studentService = {
       );
       if (match) return match;
 
-      // 2. Direct probe across known departments if not found in list
+      // 2. Direct probe top-level students collection
+      const topSnap = await getDoc(doc(db, "students", cleanId)).catch(() => null);
+      if (topSnap && topSnap.exists()) {
+        const data = topSnap.data();
+        return {
+          id: topSnap.id,
+          studentId: data.student_id || data.studentId || topSnap.id,
+          name: data.student_name || data.name || "Student",
+          registerNumber: data.register_id || data.registerNumber || data.rollNo || topSnap.id,
+          rollNo: data.rollNo || data.register_id || data.registerNumber || topSnap.id,
+          department: data.department || "General",
+          year: data.year || "1st Year",
+          grade: data.grade || data.department || "B.Tech",
+          status: (data.status || "active").toLowerCase() as any,
+          dateOfBirth: data.date_of_birth || data.dob || "",
+          dob: data.date_of_birth || data.dob || "",
+          phone: data.phone || "",
+          email: data.email || `${(data.register_id || topSnap.id).toLowerCase()}@student.college.edu`,
+          ...data,
+        } as Student;
+      }
+
+      // Also check top-level students by registerNumber query
+      const cleanReg = normalizeRegisterNumber(cleanId);
+      if (cleanReg) {
+        const qTop = await getDocs(
+          query(collection(db, "students"), where("registerNumber", "==", cleanReg))
+        ).catch(() => null);
+        if (qTop && !qTop.empty) {
+          const docFound = qTop.docs[0];
+          const data = docFound.data();
+          return {
+            id: docFound.id,
+            studentId: data.student_id || data.studentId || docFound.id,
+            name: data.student_name || data.name || "Student",
+            registerNumber: data.register_id || data.registerNumber || cleanReg,
+            rollNo: data.rollNo || data.registerNumber || cleanReg,
+            department: data.department || "General",
+            year: data.year || "1st Year",
+            ...data,
+          } as Student;
+        }
+      }
+
+      // 3. Direct probe across known departments if not found in list
       const depts = ["aids", "cse", "ece", "mech", "eee", "civil"];
       for (const d of depts) {
         const snap = await getDoc(doc(db, "departments", d, "students", cleanId)).catch(() => null);
@@ -487,8 +531,7 @@ export const studentService = {
         }
       }
 
-      // 3. Direct probe student_auth registry by Register Number
-      const cleanReg = normalizeRegisterNumber(cleanId);
+      // 4. Direct probe student_auth registry by Register Number
       if (cleanReg) {
         const authSnap = await getDoc(doc(db, "student_auth", cleanReg)).catch(() => null);
         if (authSnap && authSnap.exists()) {
@@ -729,6 +772,32 @@ export const studentService = {
         }
       }
 
+      // 8. Mirror in top-level students collection for universal retrieval
+      try {
+        await setDoc(doc(db, "students", id), {
+          ...payload,
+          student_id: id,
+          student_name: data.name,
+          register_id: cleanReg,
+          registerNumber: cleanReg,
+          rollNo: cleanReg,
+          updatedAt: now,
+        }, { merge: true });
+        if (cleanReg && cleanReg !== id) {
+          await setDoc(doc(db, "students", cleanReg), {
+            ...payload,
+            student_id: id,
+            student_name: data.name,
+            register_id: cleanReg,
+            registerNumber: cleanReg,
+            rollNo: cleanReg,
+            updatedAt: now,
+          }, { merge: true }).catch(() => {});
+        }
+      } catch (topErr) {
+        console.warn("Could not sync top-level students doc:", topErr);
+      }
+
       return id;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `departments/${deptId}/students`);
@@ -918,7 +987,33 @@ export const studentService = {
         }
       }
 
-      // Sync student details on existing fee records to preserve fee payment history with updated student identity
+      // Also update top-level students collection
+      try {
+        await setDoc(doc(db, "students", studentId), {
+          ...mergedData,
+          student_id: studentId,
+          student_name: mergedData.name,
+          register_id: finalReg,
+          registerNumber: finalReg,
+          rollNo: finalReg,
+          updatedAt: now,
+        }, { merge: true });
+        if (finalReg && finalReg !== studentId) {
+          await setDoc(doc(db, "students", finalReg), {
+            ...mergedData,
+            student_id: studentId,
+            student_name: mergedData.name,
+            register_id: finalReg,
+            registerNumber: finalReg,
+            rollNo: finalReg,
+            updatedAt: now,
+          }, { merge: true }).catch(() => {});
+        }
+      } catch (topSyncErr) {
+        console.warn("Could not sync top-level students:", topSyncErr);
+      }
+
+      // Sync student fee records
       try {
         const allDepts = ["aids", "cse", "ece", "mech", "eee", "civil"];
         for (const d of allDepts) {
@@ -953,6 +1048,7 @@ export const studentService = {
     const path = `departments/${departmentId}/students/${studentId}`;
     try {
       await deleteDoc(doc(db, "departments", departmentId, "students", studentId));
+      await deleteDoc(doc(db, "students", studentId)).catch(() => {});
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, path);
     }

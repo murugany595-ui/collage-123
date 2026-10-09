@@ -85,7 +85,7 @@ export const ExpenseOverview: React.FC<ExpenseOverviewProps> = ({
   const [chartMode, setChartMode] = useState<"prediction" | "cashflow">("prediction");
 
   // Prepare Pie Chart Data from categoryTotals
-  const pieData = Object.entries(summary?.categoryTotals || {}).map(([name, value]) => ({
+  const pieData = Object.entries(summary?.categoryTotals || summary?.byCategory || {}).map(([name, value]) => ({
     name,
     value: Number(value),
     color: CATEGORY_COLORS[name] || "#64748B",
@@ -276,9 +276,9 @@ export const ExpenseOverview: React.FC<ExpenseOverviewProps> = ({
                 Next Month Expense Prediction: ₹{prediction.predictedNextMonthExpense.toLocaleString("en-IN")}
               </h3>
               <p className="text-xs text-violet-200 max-w-2xl leading-relaxed">
-                Current month: <strong>₹{prediction.currentMonthExpense.toLocaleString("en-IN")}</strong> ({prediction.currentMonthName}).
-                Difference: <strong className={prediction.differenceAmount >= 0 ? "text-rose-300" : "text-emerald-300"}>{prediction.differenceAmount >= 0 ? "+" : "-"}₹{Math.abs(prediction.differenceAmount).toLocaleString("en-IN")}</strong> ({prediction.percentageChange >= 0 ? "+" : ""}{prediction.percentageChange}%).
-                Computed strictly from {prediction.monthlyHistory.length} historical months in Firebase.
+                Current month: <strong>₹{(prediction?.currentMonthExpense || 0).toLocaleString("en-IN")}</strong> ({prediction?.currentMonthName || "Current Month"}).
+                Difference: <strong className={(prediction?.differenceAmount || 0) >= 0 ? "text-rose-300" : "text-emerald-300"}>{(prediction?.differenceAmount || 0) >= 0 ? "+" : "-"}₹{Math.abs(prediction?.differenceAmount || 0).toLocaleString("en-IN")}</strong> ({(prediction?.percentageChange || 0) >= 0 ? "+" : ""}{prediction?.percentageChange || 0}%).
+                Computed strictly from {(prediction?.monthlyHistory || []).length} historical months in Firebase.
               </p>
             </div>
 
@@ -368,10 +368,10 @@ export const ExpenseOverview: React.FC<ExpenseOverviewProps> = ({
           </div>
 
           {chartMode === "prediction" ? (
-            prediction.chartData.length > 0 ? (
+            (prediction?.chartData || []).length > 0 ? (
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={prediction.chartData} margin={{ top: 10, right: 15, left: 0, bottom: 0 }}>
+                  <ComposedChart data={prediction?.chartData || []} margin={{ top: 10, right: 15, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                     <XAxis dataKey="month" tickLine={false} axisLine={{ stroke: "#E2E8F0" }} fontSize={11} />
                     <YAxis
@@ -427,7 +427,7 @@ export const ExpenseOverview: React.FC<ExpenseOverviewProps> = ({
                 <p>No historical monthly expenses logged in Firestore.</p>
               </div>
             )
-          ) : trendData.length > 0 ? (
+          ) : (trendData || []).length > 0 ? (
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -471,7 +471,7 @@ export const ExpenseOverview: React.FC<ExpenseOverviewProps> = ({
             <p className="text-xs text-slate-500">Distribution across approved expense heads</p>
           </div>
 
-          {pieData.length > 0 ? (
+          {(pieData || []).length > 0 ? (
             <div className="h-56 w-full relative flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>

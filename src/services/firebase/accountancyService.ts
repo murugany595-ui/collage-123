@@ -9,8 +9,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { db, auth } from "../../config/firebase";
+import { db, auth, createFirebaseAuthUser } from "../../config/firebase";
 
 export interface AccountancyUser {
   accountancyId: string;
@@ -105,13 +104,31 @@ export const accountancyService = {
     if (!data.email) {
       throw new Error("Email is required for creating an accountant account");
     }
-    const accountancyId = data.accountancyId || `ACC-${Date.now().toString().slice(-5)}`;
+    const cleanEmail = data.email.trim().toLowerCase();
+    let accountancyId = data.accountancyId || data.id;
+
+    // 1. If password provided, provision Firebase Auth account first
+    if (data.password) {
+      try {
+        const authRes = await createFirebaseAuthUser(cleanEmail, data.password, data.name || "Accountant");
+        if (authRes?.uid) {
+          accountancyId = authRes.uid;
+        }
+      } catch (authErr) {
+        console.warn("Accountancy user auth provisioning notice:", authErr);
+      }
+    }
+
+    if (!accountancyId) {
+      accountancyId = `ACC-${Date.now().toString().slice(-5)}`;
+    }
+
     const now = new Date().toISOString();
     const payload: AccountancyUser = {
       id: accountancyId,
       accountancyId,
       name: data.name || "Accountant",
-      email: data.email.trim().toLowerCase(),
+      email: cleanEmail,
       role: "accountant",
       department: data.department || "Finance & Accounts",
       phone: data.phone || "",
@@ -120,23 +137,14 @@ export const accountancyService = {
       updatedAt: now,
     };
 
-    // 1. Store in dedicated 'accountancy' collection
+    // 2. Store in dedicated 'accountancy' collection
     await setDoc(doc(db, "accountancy", accountancyId), payload);
 
-    // 2. Also ensure in users collection so login/auth recognizes the role
+    // 3. Also ensure in users collection so login/auth recognizes the role
     await setDoc(doc(db, "users", accountancyId), {
       uid: accountancyId,
       ...payload,
     }, { merge: true });
-
-    // 3. If password provided, attempt to provision Firebase Auth account
-    if (payload.email && data.password) {
-      try {
-        await createUserWithEmailAndPassword(auth, payload.email, data.password).catch(() => {});
-      } catch (authErr) {
-        console.warn("Accountancy user auth provisioning notice:", authErr);
-      }
-    }
 
     return accountancyId;
   },

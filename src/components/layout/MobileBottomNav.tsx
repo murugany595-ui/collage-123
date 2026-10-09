@@ -32,7 +32,6 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       return [
         { id: "fees", label: "Fees", icon: <CreditCard className="w-5 h-5" /> },
         { id: "profile", label: "Profile", icon: <User className="w-5 h-5" /> },
-        { id: "chatbot", label: "Chatbot", icon: <MessageSquare className="w-5 h-5" /> },
         { id: "notifications", label: "Alerts", icon: <Bell className="w-5 h-5" /> },
       ];
     }

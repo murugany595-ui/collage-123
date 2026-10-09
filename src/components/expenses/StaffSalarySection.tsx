@@ -185,7 +185,8 @@ export const StaffSalarySection: React.FC<StaffSalarySectionProps> = ({
   };
 
   // Filter Salaries
-  const filteredSalaries = salaries.filter((s) => {
+  const safeSalaries = Array.isArray(salaries) ? salaries : [];
+  const filteredSalaries = safeSalaries.filter((s) => {
     const q = searchQuery.toLowerCase();
     const matchesQ =
       !q ||
@@ -440,7 +441,7 @@ export const StaffSalarySection: React.FC<StaffSalarySectionProps> = ({
 
             <form onSubmit={handleSubmitSalary} className="p-6 space-y-4.5 max-h-[80vh] overflow-y-auto">
               {/* Real Staff Picker */}
-              {!editingSalary && realStaff.length > 0 && (
+              {!editingSalary && (realStaff || []).length > 0 && (
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                     Quick Select Faculty Member

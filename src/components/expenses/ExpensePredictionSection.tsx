@@ -80,7 +80,7 @@ export const ExpensePredictionSection: React.FC<ExpensePredictionSectionProps> =
             </span>
             <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
               <Database className="w-3.5 h-3.5 text-emerald-500" />
-              Live Firebase Records ({expenses.length} vouchers logged)
+              Live Firebase Records ({(expenses || []).length} vouchers logged)
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
@@ -254,7 +254,7 @@ export const ExpensePredictionSection: React.FC<ExpensePredictionSectionProps> =
               <div className="pt-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
                 <Clock className="w-3.5 h-3.5 text-amber-600" />
                 <span>
-                  Current database records: <strong>{monthlyHistory.length}</strong> month(s) available.
+                  Current database records: <strong>{(monthlyHistory || []).length}</strong> month(s) available.
                 </span>
               </div>
             </div>
@@ -298,7 +298,7 @@ export const ExpensePredictionSection: React.FC<ExpensePredictionSectionProps> =
           </div>
         </div>
 
-        {chartData.length > 0 ? (
+        {(chartData || []).length > 0 ? (
           <div className="h-80 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={chartData} margin={{ top: 20, right: 25, left: 10, bottom: 10 }}>
@@ -389,11 +389,11 @@ export const ExpensePredictionSection: React.FC<ExpensePredictionSectionProps> =
               </p>
             </div>
             <span className="text-xs font-bold text-violet-700 bg-violet-50 px-3 py-1 rounded-xl border border-violet-100">
-              {monthlyHistory.length} Monthly Cycle(s)
+              {(monthlyHistory || []).length} Monthly Cycle(s)
             </span>
           </div>
 
-          {monthlyHistory.length > 0 ? (
+          {(monthlyHistory || []).length > 0 ? (
             <div className="divide-y divide-slate-100">
               {monthlyHistory.map((m, idx) => {
                 const prev = idx > 0 ? monthlyHistory[idx - 1].totalAmount : null;
@@ -502,7 +502,7 @@ export const ExpensePredictionSection: React.FC<ExpensePredictionSectionProps> =
               <p className="text-xs text-slate-500">Distribution across actual project categories</p>
             </div>
 
-            {categoryBreakdown.length > 0 ? (
+            {(categoryBreakdown || []).length > 0 ? (
               <div className="space-y-3">
                 {categoryBreakdown.map((cat) => (
                   <div key={cat.category} className="space-y-1">
