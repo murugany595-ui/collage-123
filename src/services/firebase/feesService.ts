@@ -51,6 +51,10 @@ export const DEFAULT_FEE_CATEGORIES: FeeCategory[] = [];
 
 export const feesService = {
   async getFeesByDepartment(departmentId: string): Promise<FeeRecord[]> {
+    if (!auth.currentUser && !localStorage.getItem("edufee_token")) return [];
+    if (departmentId === "all" || !departmentId) {
+      return this.getAllFees();
+    }
     const path = `departments/${departmentId}/fees`;
     try {
       const snap = await getDocs(collection(db, "departments", departmentId, "fees"));
@@ -74,21 +78,72 @@ export const feesService = {
   },
 
   async getAllFees(currentRole?: string, userDept?: string): Promise<FeeRecord[]> {
-    if (currentRole && currentRole !== "admin" && currentRole !== "accountant" && userDept && userDept !== "all") {
-      return this.getFeesByDepartment(userDept);
-    }
-
     try {
-      const depts = await departmentService.getDepartments();
+      const feeMap = new Map<string, FeeRecord>();
+
+      // 1. Fetch from canonical department subcollections
+      const depts = await departmentService.getDepartments().catch(() => []);
       const promises = depts.map((d) => this.getFeesByDepartment(d.id).catch(() => []));
       const results = await Promise.all(promises);
-      return results.flat();
+      results.flat().forEach((f) => {
+        feeMap.set(f.id || (f as any).fee_id, f);
+      });
+
+      // 2. Also check top-level student_fees collection if available
+      try {
+        const topSnap = await getDocs(collection(db, "student_fees"));
+        topSnap.docs.forEach((d) => {
+          const data = d.data();
+          const totalFee = Number(data.total_fee !== undefined ? data.total_fee : (data.amount || 0));
+          const paid = Number(data.paid_amount !== undefined ? data.paid_amount : (data.paidAmount || 0));
+          const pending = Number(data.pending_amount !== undefined ? data.pending_amount : Math.max(0, totalFee - paid));
+
+          let pStatus: FeeRecord["paymentStatus"] = data.payment_status || data.paymentStatus;
+          if (!pStatus) {
+            pStatus = pending === 0 ? "Paid" : paid > 0 ? "Partial" : "Pending";
+          }
+
+          const fObj: FeeRecord = {
+            id: d.id,
+            fee_id: data.fee_id || d.id,
+            studentId: data.student_id || data.studentId || "",
+            student_id: data.student_id || data.studentId || "",
+            studentName: data.student_name || data.studentName || "Student",
+            department: data.department || "General",
+            academicYear: data.academic_year || data.academicYear || "2026-27",
+            academic_year: data.academic_year || data.academicYear || "2026-27",
+            total_fee: totalFee,
+            amount: totalFee,
+            paid_amount: paid,
+            paidAmount: paid,
+            pending_amount: pending,
+            balance: pending,
+            due_date: data.due_date || data.dueDate || "2026-09-30",
+            dueDate: data.due_date || data.dueDate || "2026-09-30",
+            paymentStatus: pStatus,
+            feeType: data.feeType || "Tuition & Academic Fee",
+            ...data,
+          } as FeeRecord;
+
+          if (!feeMap.has(d.id)) {
+            feeMap.set(d.id, fObj);
+          }
+        });
+      } catch {}
+
+      let list = Array.from(feeMap.values());
+      if (currentRole && currentRole !== "admin" && currentRole !== "accountant" && userDept && userDept !== "all") {
+        list = list.filter((f) => f.department?.toLowerCase() === userDept.toLowerCase());
+      }
+      return list;
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, "fees");
+      console.warn("Could not fetch remote fees from Firestore:", error);
+      return [];
     }
   },
 
   async getFeeById(departmentId: string, feeId: string): Promise<FeeRecord | null> {
+    if (!auth.currentUser || !feeId) return null;
     const path = `departments/${departmentId}/fees/${feeId}`;
     try {
       const snap = await getDoc(doc(db, "departments", departmentId, "fees", feeId));

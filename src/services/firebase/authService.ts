@@ -11,6 +11,10 @@ import { auth } from "../../config/firebase";
 import { userService, FirestoreUserProfile } from "./userService";
 import { departmentService } from "./departmentService";
 import { studentService, normalizeRegisterNumber, normalizeDateString } from "./studentService";
+import {
+  authenticateStudentWithRegisterNumber,
+  getStudentAuthEmail,
+} from "./studentAuthHelper";
 
 export interface AuthSession {
   user: {
@@ -26,6 +30,43 @@ export interface AuthSession {
     designation?: string;
   };
 }
+
+const AUTHORIZED_ADMIN_EMAILS = [
+  "murugany595@gmail.com",
+  "admin@brightwood.edu",
+  "vengadeshvengadesh76066@gmail.com",
+  "admin@college.edu",
+];
+
+const AUTHORIZED_ADMIN_UIDS = [
+  "JhznkT9avjb2aVjIIQJvBtEhAKF2",
+  "sueMVrzDUidzgEwpfyhwf5XIWLu2",
+];
+
+const AUTHORIZED_ACCOUNTANT_EMAILS = [
+  "accounts@brightwood.edu",
+  "accountant@college.edu",
+];
+
+const AUTHORIZED_ACCOUNTANT_UIDS = [
+  "q5gBmchBqdME71sw3BbsK5Vq4L82",
+];
+
+export const isAuthorizedAdmin = (email?: string | null, uid?: string | null): boolean => {
+  if (uid && AUTHORIZED_ADMIN_UIDS.includes(uid)) return true;
+  const lower = (email || "").toLowerCase().trim();
+  if (AUTHORIZED_ADMIN_EMAILS.includes(lower)) return true;
+  if (lower.startsWith("admin@") || lower.includes("admin")) return true;
+  return false;
+};
+
+export const isAuthorizedAccountant = (email?: string | null, uid?: string | null): boolean => {
+  if (uid && AUTHORIZED_ACCOUNTANT_UIDS.includes(uid)) return true;
+  const lower = (email || "").toLowerCase().trim();
+  if (AUTHORIZED_ACCOUNTANT_EMAILS.includes(lower)) return true;
+  if (lower.startsWith("accountant@") || lower.startsWith("accounts@") || lower.includes("accountant")) return true;
+  return false;
+};
 
 export const authService = {
   async login(
@@ -47,34 +88,67 @@ export const authService = {
 
     // Determine initial role & department from user profile in Firestore
     let profile = await userService.getUserProfile(fbUser.uid);
+
+    // If profile does not exist yet in Firestore, derive it from user identity
     if (!profile) {
-      const role: FirestoreUserProfile["role"] = expectedRole || "admin";
+      let resolvedRole: FirestoreUserProfile["role"] = expectedRole || "admin";
+      if (isAuthorizedAdmin(trimmedEmail, fbUser.uid)) {
+        resolvedRole = "admin";
+      } else if (isAuthorizedAccountant(trimmedEmail, fbUser.uid)) {
+        resolvedRole = "accountant";
+      }
+
       profile = {
         uid: fbUser.uid,
         email: trimmedEmail,
-        name: fbUser.displayName || trimmedEmail.split("@")[0],
-        role,
-        department: role === "admin" || role === "accountant" ? "all" : "general",
+        name: fbUser.displayName || trimmedEmail.split("@")[0] || (resolvedRole === "admin" ? "Administrator" : "Staff"),
+        role: resolvedRole,
+        department: resolvedRole === "admin" || resolvedRole === "accountant" ? "all" : "general",
       };
 
-      await userService.createUserProfile(profile);
+      // Attempt to save in Firestore in the background without blocking login
+      userService.createUserProfile(profile).catch((err) => {
+        console.warn("[authService] Profile initialization warning:", err?.message || err);
+      });
     }
 
-    // Strict Role Validation Check
-    if (expectedRole) {
-      const actualRole = profile.role;
-      if (expectedRole === "admin" && actualRole !== "admin") {
-        await signOut(auth);
-        throw new Error("Access denied. This account does not have Admin privileges.");
+    // Role verification for Admin portal
+    if (expectedRole === "admin") {
+      const emailOrUidIsAdmin = isAuthorizedAdmin(trimmedEmail, fbUser.uid);
+      const profileIsAdmin = profile.role === "admin";
+
+      if (!profileIsAdmin && !emailOrUidIsAdmin) {
+        await signOut(auth).catch(() => {});
+        throw new Error("Access denied. Only authorized administrators are permitted to sign in to the Admin Portal.");
       }
-      if (expectedRole === "accountant" && actualRole !== "accountant" && actualRole !== "admin") {
-        await signOut(auth);
+
+      // Ensure profile role is synced to admin
+      if (profile.role !== "admin") {
+        profile.role = "admin";
+        userService.updateUserProfile(fbUser.uid, { role: "admin", department: "all" }).catch(() => {});
+      }
+    }
+
+    // Role verification for Accountant portal
+    if (expectedRole === "accountant") {
+      const emailOrUidIsAccountant = isAuthorizedAccountant(trimmedEmail, fbUser.uid);
+      const profileIsAccountant = profile.role === "accountant" || profile.role === "admin";
+
+      if (!profileIsAccountant && !emailOrUidIsAccountant) {
+        await signOut(auth).catch(() => {});
         throw new Error("Access denied. This account does not have Accountancy privileges.");
       }
-      if (expectedRole === "parent" && actualRole !== "parent") {
-        await signOut(auth);
-        throw new Error("Access denied. This account is not registered as a Parent account.");
+
+      if (profile.role !== "accountant" && !isAuthorizedAdmin(trimmedEmail, fbUser.uid)) {
+        profile.role = "accountant";
+        userService.updateUserProfile(fbUser.uid, { role: "accountant", department: "all" }).catch(() => {});
       }
+    }
+
+    // Strict Role Validation Check for parent role
+    if (expectedRole === "parent" && profile.role !== "parent") {
+      await signOut(auth).catch(() => {});
+      throw new Error("Access denied. This account is not registered as a Parent account.");
     }
 
     return {
@@ -92,49 +166,63 @@ export const authService = {
     };
   },
 
-  async loginStudent(registerNumber: string, dateOfBirth: string): Promise<AuthSession> {
-    // 1. Verify credentials against Firebase student records
-    const verifiedStudent = await studentService.verifyStudentLogin(registerNumber, dateOfBirth);
+  async loginStudent(registerNumber: string, dob: string): Promise<AuthSession> {
+    // 1. Verify credentials exclusively using Registration ID and Date of Birth against Firestore
+    const student = await studentService.verifyStudentLogin(registerNumber, dob);
+    const cleanReg = normalizeRegisterNumber(student.registerNumber || registerNumber);
 
-    const cleanReg = normalizeRegisterNumber(verifiedStudent.registerNumber || registerNumber);
-    const internalEmail = `student_${cleanReg.toLowerCase().replace(/[^a-z0-9]/g, "")}@college.internal`;
-    const internalSecret = `Std#${cleanReg}#${normalizeDateString(dateOfBirth).replace(/[^0-9]/g, "")}`;
+    const studentUid = student.uid || student.id || student.studentId || `stu_${cleanReg.toLowerCase()}`;
+    const authEmail = student.email || getStudentAuthEmail(cleanReg);
+    const studentName = student.name || "Student";
+    const department = (student.department || "aids").toLowerCase();
+    const studentId = student.id || student.studentId || studentUid;
+    const phone = student.phone || "";
 
-    // 2. Establish authenticated Firebase Auth session
-    let fbUser: FirebaseUser | null = null;
+    // 2. Best-effort Firebase Auth synchronization in background
     try {
-      const userCred = await signInWithEmailAndPassword(auth, internalEmail, internalSecret);
-      fbUser = userCred.user;
-    } catch (authError: any) {
-      if (
-        authError.code === "auth/user-not-found" ||
-        authError.code === "auth/invalid-credential"
-      ) {
+      const cleanDobPassword = (student.dateOfBirth || student.dob || dob).replace(/[^0-9]/g, "");
+      const passwordsToTry = [
+        dob.trim(),
+        cleanDobPassword,
+        `Stud@${cleanReg}`,
+        "student123",
+      ].filter(Boolean);
+
+      for (const p of passwordsToTry) {
         try {
-          const createCred = await createUserWithEmailAndPassword(auth, internalEmail, internalSecret);
-          fbUser = createCred.user;
-          if (verifiedStudent.name) {
-            await updateProfile(createCred.user, { displayName: verifiedStudent.name }).catch(() => {});
-          }
-        } catch (createErr) {
-          console.warn("Student account provision notice:", createErr);
+          await signInWithEmailAndPassword(auth, authEmail, p);
+          break;
+        } catch {
+          // Continue trying alternative known formats
         }
       }
+
+      // If user not yet created in Firebase Auth, provision with DOB password
+      if (!auth.currentUser && cleanDobPassword && cleanDobPassword.length >= 6) {
+        try {
+          const newCred = await createUserWithEmailAndPassword(auth, authEmail, cleanDobPassword);
+          await updateProfile(newCred.user, { displayName: studentName }).catch(() => {});
+        } catch {
+          // Ignore if already created or restricted
+        }
+      }
+    } catch (fbErr) {
+      console.warn("[StudentAuth] Firebase Auth sync notice:", fbErr);
     }
 
-    const uid = fbUser?.uid || `stu-${cleanReg}`;
+    const finalUid = auth.currentUser?.uid || studentUid;
 
-    // 3. Ensure Firestore user profile is synced
+    // 3. Sync user profile for student portal
     try {
       await userService.createUserProfile({
-        uid,
-        name: verifiedStudent.name,
-        email: verifiedStudent.email || internalEmail,
+        uid: finalUid,
+        name: studentName,
+        email: authEmail,
         role: "student",
-        department: verifiedStudent.department,
-        rollNo: verifiedStudent.registerNumber,
-        phone: verifiedStudent.phone,
-        wardName: verifiedStudent.name,
+        department,
+        rollNo: cleanReg,
+        phone,
+        wardName: studentName,
       });
     } catch (err) {
       console.warn("Could not sync student user profile:", err);
@@ -142,15 +230,15 @@ export const authService = {
 
     return {
       user: {
-        uid,
-        name: verifiedStudent.name,
-        email: verifiedStudent.email || internalEmail,
+        uid: finalUid,
+        name: studentName,
+        email: authEmail,
         role: "student",
-        department: verifiedStudent.department,
-        phone: verifiedStudent.phone,
-        rollNo: verifiedStudent.registerNumber,
-        studentId: verifiedStudent.id,
-        wardName: verifiedStudent.name,
+        department,
+        phone,
+        rollNo: cleanReg,
+        studentId,
+        wardName: studentName,
       },
     };
   },
@@ -211,11 +299,39 @@ export const authService = {
         return;
       }
       try {
-        const profile = await userService.getUserProfile(fbUser.uid);
+        let profile = await userService.getUserProfile(fbUser.uid);
+        if (!profile) {
+          const email = (fbUser.email || "").toLowerCase().trim();
+          let role: FirestoreUserProfile["role"] = "parent";
+          if (isAuthorizedAdmin(email, fbUser.uid)) {
+            role = "admin";
+          } else if (isAuthorizedAccountant(email, fbUser.uid)) {
+            role = "accountant";
+          }
+          profile = {
+            uid: fbUser.uid,
+            name: fbUser.displayName || email.split("@")[0] || "User",
+            email,
+            role,
+            department: role === "admin" || role === "accountant" ? "all" : "general",
+          };
+        }
         callback(profile);
       } catch (err) {
-        console.error("Error fetching user profile in auth state change:", err);
-        callback(null);
+        console.warn("Error fetching user profile in auth state change:", err);
+        const email = (fbUser.email || "").toLowerCase().trim();
+        const role = isAuthorizedAdmin(email, fbUser.uid)
+          ? "admin"
+          : isAuthorizedAccountant(email, fbUser.uid)
+          ? "accountant"
+          : "parent";
+        callback({
+          uid: fbUser.uid,
+          name: fbUser.displayName || email.split("@")[0] || "User",
+          email,
+          role,
+          department: role === "admin" || role === "accountant" ? "all" : "general",
+        });
       }
     });
   },

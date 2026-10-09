@@ -38,6 +38,7 @@ export const parentService = {
    * Each document contains: parentId, name, email, studentId/linkedStudentId, studentRegisterNumber, role, createdAt
    */
   async getParents(searchQuery?: string): Promise<ParentRecord[]> {
+    if (!auth.currentUser) return [];
     try {
       // 1. Fetch directly from dedicated 'parents' collection
       const snap = await getDocs(collection(db, "parents"));

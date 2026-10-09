@@ -15,6 +15,7 @@ import {
   expenseService,
   parentService,
   accountancyService,
+  auditService,
   DEFAULT_FEE_CATEGORIES,
   FeeCategory,
 } from "./firebase";
@@ -239,9 +240,9 @@ export const api = {
       return { success: true, id, message: "Student record added to Firestore" };
     },
 
-    updateStudent: async (id: string, data: any) => {
-      const dept = data.department || "aids";
-      await studentService.updateStudent(dept, id, data);
+    updateStudent: async (id: string, data: any, originalDept?: string) => {
+      const origDept = originalDept || data.originalDepartment || data.origDept || data.department || "aids";
+      await studentService.updateStudent(origDept, id, data);
       return { success: true, message: "Student updated in Firestore" };
     },
 
@@ -471,23 +472,40 @@ export const api = {
     getFees: async () => {
       const fbUser = auth.currentUser;
       const profile = fbUser?.uid ? await userService.getUserProfile(fbUser.uid) : null;
-      let dept = profile?.department;
-      if (!dept && fbUser?.email) {
-        if (fbUser.email.toLowerCase().includes("cse")) dept = "cse";
-        else if (fbUser.email.toLowerCase().includes("ece")) dept = "ece";
-        else if (fbUser.email.toLowerCase().includes("mech")) dept = "mech";
+      let dept = (profile?.department || "aids").toLowerCase();
+      const userReg = (profile?.rollNo || (profile as any)?.registerNumber || "").toUpperCase().trim();
+      const userName = (profile?.name || "").toLowerCase().trim();
+
+      let allFees = await feesService.getFeesByDepartment(dept).catch(() => []);
+      let invoices = allFees.filter((f) => {
+        const fReg = ((f as any).studentRegisterNumber || (f as any).rollNo || "").toUpperCase().trim();
+        return (
+          f.studentId === fbUser?.uid ||
+          (userReg && fReg === userReg) ||
+          (userName && f.studentName?.toLowerCase().trim() === userName)
+        );
+      });
+
+      if (invoices.length === 0) {
+        const fullFees = await feesService.getAllFees().catch(() => []);
+        invoices = fullFees.filter((f) => {
+          const fReg = ((f as any).studentRegisterNumber || (f as any).rollNo || "").toUpperCase().trim();
+          return (
+            f.studentId === fbUser?.uid ||
+            (userReg && fReg === userReg) ||
+            (userName && f.studentName?.toLowerCase().trim() === userName)
+          );
+        });
       }
-      dept = dept || "cse";
-      const allFees = await feesService.getFeesByDepartment(dept).catch(() => []);
-      const invoices = allFees.filter((f) => f.studentId === fbUser?.uid || f.studentName === profile?.name);
-      const totalDue = (invoices.length > 0 ? invoices : allFees)
+
+      const totalDue = invoices
         .filter((f) => f.paymentStatus !== "Paid")
         .reduce((acc, f) => acc + (f.balance || f.amount || 0), 0);
 
       return {
         success: true,
         data: {
-          invoices: invoices.length > 0 ? invoices : allFees.slice(0, 3),
+          invoices,
           totalDue: totalDue || 0,
         },
       };
@@ -763,10 +781,25 @@ export const api = {
       department?: string;
       remarks?: string;
     }) => {
-      const dept = (body.department || "aids").toLowerCase();
+      let dept = (body.department || "").toLowerCase().trim();
+      let sName = body.student_name || "";
+      let sReg = "";
+
+      if (!dept || !sName || sName === "Student") {
+        const allStudents = await studentService.getAllStudents().catch(() => []);
+        const s = allStudents.find((st) => st.id === body.student_id || st.uid === body.student_id);
+        if (s) {
+          dept = dept || s.department || "aids";
+          sName = sName && sName !== "Student" ? sName : s.name;
+          sReg = s.registerNumber || s.rollNo || "";
+        }
+      }
+      dept = dept || "aids";
+
       const id = await feesService.createFee({
         studentId: body.student_id,
-        studentName: body.student_name || "Student",
+        studentName: sName || "Student",
+        studentRegisterNumber: sReg,
         department: dept,
         academicYear: body.grade || "2024-2025",
         feeType: body.category || "Tuition Fee",
@@ -775,7 +808,7 @@ export const api = {
         dueDate: body.due_date,
         remarks: body.remarks,
         paymentStatus: "Pending",
-      });
+      } as any);
       return { success: true, id, message: "Fee record created in Firestore" };
     },
 
@@ -957,10 +990,22 @@ export const api = {
           engine: "Firebase Cloud Firestore",
           auth: "Firebase Authentication",
           project: "collage-28e7c",
-          collections: ["admins", "departments", "users", "adminExpenses"],
+          collections: ["admins", "departments", "users", "adminExpenses", "auditLogs"],
           rules: "Hardened Role-Based Firestore Rules with Department Isolation",
         },
       };
+    },
+  },
+
+  // Security & Administrative Audit Logs
+  audit: {
+    getRecentLogs: async (maxCount: number = 50) => {
+      const logs = await auditService.getRecentLogs(maxCount);
+      return { success: true, data: logs };
+    },
+    logEvent: async (options: any) => {
+      const id = await auditService.log(options);
+      return { success: true, id };
     },
   },
 
@@ -1031,6 +1076,10 @@ export const api = {
       return { success: true, data };
     },
 
+    subscribe: (callback: (expenses: any[]) => void) => {
+      return expenseService.subscribeAdminExpenses(callback);
+    },
+
     getMonthlyReport: async (month?: string) => {
       const expenses = await expenseService.getAdminExpenses({ month });
       const feeSummary = await feesService.getSummary();
@@ -1056,7 +1105,19 @@ export const api = {
     // Staff Salaries within adminExpenses
     getSalaries: async (params?: { q?: string; month?: string; department?: string; status?: string }) => {
       const all = await expenseService.getAdminExpenses({ category: "Staff Salary", month: params?.month });
-      let list = all;
+      let list = all.map((s) => ({
+        ...s,
+        salary_month: s.salary_month || s.month || (s.date ? s.date.slice(0, 7) : ""),
+        basic_salary: Number(s.basic_salary !== undefined ? s.basic_salary : (s.amount_inr || s.amount || 0)),
+        allowances: Number(s.allowances || 0),
+        deductions: Number(s.deductions || 0),
+        payment_date: s.payment_date || s.date || "",
+        payment_status: s.payment_status || "Paid",
+        staff_name: s.staff_name || s.paid_to || "Staff Member",
+        staff_id: s.staff_id || "",
+        department: s.department || "General",
+        designation: s.designation || "Faculty",
+      } as any));
       if (params?.department && params.department !== "all") {
         list = list.filter((s) => s.department === params.department);
       }
@@ -1069,7 +1130,8 @@ export const api = {
           (s) =>
             s.staff_name?.toLowerCase().includes(q) ||
             s.designation?.toLowerCase().includes(q) ||
-            s.staff_id?.toLowerCase().includes(q)
+            s.staff_id?.toLowerCase().includes(q) ||
+            s.title?.toLowerCase().includes(q)
         );
       }
       const total = list.reduce((acc, s) => acc + (s.amount || 0), 0);
@@ -1138,7 +1200,17 @@ export const api = {
     // Electricity Bills within adminExpenses
     getElectricityBills: async (params?: { q?: string; month?: string; status?: string }) => {
       const all = await expenseService.getAdminExpenses({ category: "Electricity Bill", month: params?.month });
-      let list = all;
+      let list = all.map((b) => ({
+        ...b,
+        billing_month: b.billing_month || b.month || (b.date ? b.date.slice(0, 7) : ""),
+        eb_consumer_number: b.eb_consumer_number || `EB-${b.id}`,
+        bill_amount: Number(b.bill_amount !== undefined ? b.bill_amount : (b.amount_inr || b.amount || 0)),
+        due_date: b.due_date || b.date || "",
+        previous_reading: Number(b.previous_reading || 0),
+        current_reading: Number(b.current_reading || 0),
+        units_consumed: Number(b.units_consumed || (b.current_reading && b.previous_reading ? b.current_reading - b.previous_reading : 0)),
+        payment_status: b.payment_status || "Paid",
+      } as any));
       if (params?.status && params.status !== "all") {
         list = list.filter((b) => b.payment_status === params.status);
       }
@@ -1147,10 +1219,11 @@ export const api = {
         list = list.filter(
           (b) =>
             b.eb_consumer_number?.toLowerCase().includes(q) ||
-            b.meter_location?.toLowerCase().includes(q)
+            b.meter_location?.toLowerCase().includes(q) ||
+            b.title?.toLowerCase().includes(q)
         );
       }
-      const total = list.reduce((acc, b) => acc + (b.amount || 0), 0);
+      const total = list.reduce((acc, b) => acc + (b.bill_amount || b.amount || 0), 0);
       return { success: true, data: list, summary: { totalBills: total, count: list.length } };
     },
 

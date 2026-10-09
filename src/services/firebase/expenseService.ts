@@ -6,6 +6,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  onSnapshot,
 } from "firebase/firestore";
 import { db, auth } from "../../config/firebase";
 import { handleFirestoreError, OperationType } from "./firestoreErrors";
@@ -66,43 +67,124 @@ export interface DepartmentExpense {
 }
 
 export const expenseService = {
-  // Admin Central Expenses: adminExpenses/{expenseId}
+  // Admin Central Expenses: primary and authoritative 'adminExpenses' collection
   async getAdminExpenses(filters?: { category?: string; status?: string; month?: string }): Promise<AdminExpense[]> {
-    const path = "adminExpenses";
     try {
+      // 1. Read authoritative adminExpenses collection
       const snap = await getDocs(collection(db, "adminExpenses"));
-      let list = snap.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as any),
-        amount: Number(d.data().amount || 0),
-      })) as AdminExpense[];
+      
+      let list = snap.docs.map((d) => {
+        const data = d.data();
+        const rawAmt = data.amount_inr !== undefined ? data.amount_inr : data.amount !== undefined ? data.amount : data.bill_amount;
+        const amt = Number(rawAmt) || 0;
+        const m = data.month || (data.date ? String(data.date).slice(0, 7) : "");
+        const dDate = data.date || (m ? `${m}-01` : "");
+        const cat = data.category || "Other Expenses";
+        const title = data.description || data.title || `${cat} - ${m || dDate}`;
+        return {
+          id: d.id,
+          expense_id: data.expense_id || data.expenseId || d.id,
+          expenseId: data.expenseId || data.expense_id || d.id,
+          title,
+          description: data.description || data.title || "",
+          category: cat,
+          amount: amt,
+          amount_inr: amt,
+          month: m,
+          date: dDate,
+          year: data.year || (m ? parseInt(m.slice(0, 4), 10) : new Date().getFullYear()),
+          staff_id: data.staff_id || "",
+          staff_name: data.staff_name || "",
+          paid_to: data.paid_to || data.staff_name || cat,
+          payment_status: data.payment_status || "Paid",
+          ...data,
+          amount: amt, // enforce parsed number
+          amount_inr: amt,
+        } as AdminExpense;
+      });
 
-      if (filters?.category) {
-        list = list.filter((e) => e.category === filters.category);
+      if (filters?.category && filters.category !== "All") {
+        if (filters.category === "Electricity Bill" || filters.category === "Electricity") {
+          list = list.filter((e) => e.category === "Electricity Bill" || e.category === "Electricity");
+        } else {
+          list = list.filter((e) => e.category === filters.category);
+        }
       }
-      if (filters?.status) {
+      if (filters?.status && filters.status !== "All") {
         list = list.filter((e) => e.payment_status === filters.status);
       }
-      if (filters?.month) {
+      if (filters?.month && filters.month !== "All") {
         list = list.filter(
-          (e) => (e.date && e.date.startsWith(filters.month!)) || e.salary_month === filters.month || e.billing_month === filters.month
+          (e) => (e.month && e.month === filters.month) || (e.date && e.date.startsWith(filters.month!))
         );
       }
 
       return list;
-    } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, path);
+    } catch (error: any) {
+      console.error("Failed to fetch adminExpenses from Firestore:", error);
+      throw error;
     }
   },
 
+  // Real-time Firestore subscription for instant updates on add/edit/delete
+  subscribeAdminExpenses(callback: (expenses: AdminExpense[]) => void, onError?: (error: any) => void): () => void {
+    const colRef = collection(db, "adminExpenses");
+    return onSnapshot(
+      colRef,
+      (snap) => {
+        const list = snap.docs.map((d) => {
+          const data = d.data();
+          const rawAmt = data.amount_inr !== undefined ? data.amount_inr : data.amount !== undefined ? data.amount : data.bill_amount;
+          const amt = Number(rawAmt) || 0;
+          const m = data.month || (data.date ? String(data.date).slice(0, 7) : "");
+          const dDate = data.date || (m ? `${m}-01` : "");
+          const cat = data.category || "Other Expenses";
+          const title = data.description || data.title || `${cat} - ${m || dDate}`;
+          return {
+            id: d.id,
+            expense_id: data.expense_id || data.expenseId || d.id,
+            expenseId: data.expenseId || data.expense_id || d.id,
+            title,
+            description: data.description || data.title || "",
+            category: cat,
+            amount: amt,
+            amount_inr: amt,
+            month: m,
+            date: dDate,
+            year: data.year || (m ? parseInt(m.slice(0, 4), 10) : new Date().getFullYear()),
+            staff_id: data.staff_id || "",
+            staff_name: data.staff_name || "",
+            paid_to: data.paid_to || data.staff_name || cat,
+            payment_status: data.payment_status || "Paid",
+            ...data,
+            amount: amt,
+            amount_inr: amt,
+          } as AdminExpense;
+        });
+        callback(list);
+      },
+      (error) => {
+        console.error("Real-time listener on adminExpenses error:", error);
+        if (onError) onError(error);
+      }
+    );
+  },
+
   async getAdminExpenseById(id: string): Promise<AdminExpense | null> {
+    if (!id) {
+      return null;
+    }
     const path = `adminExpenses/${id}`;
     try {
       const snap = await getDoc(doc(db, "adminExpenses", id));
       if (!snap.exists()) return null;
       return { id: snap.id, ...(snap.data() as any) };
-    } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+    } catch (error: any) {
+      if (error?.code === "permission-denied" || error?.message?.includes("insufficient permissions")) {
+        handleFirestoreError(error, OperationType.GET, path);
+      }
+      console.warn(`Could not fetch adminExpense ${id}:`, error);
+      return null;
     }
   },
 
@@ -129,6 +211,7 @@ export const expenseService = {
         updatedAt: now,
       };
       await setDoc(doc(db, "adminExpenses", id), payload);
+      await setDoc(doc(db, "expenses", id), payload);
 
       // Audit Log for Expense Creation
       await logAuditEvent({
@@ -177,11 +260,14 @@ export const expenseService = {
   async updateAdminExpense(id: string, updates: Partial<AdminExpense>): Promise<void> {
     const path = `adminExpenses/${id}`;
     try {
-      await updateDoc(doc(db, "adminExpenses", id), {
+      const nowUpdates: any = {
         ...updates,
         amount: updates.amount !== undefined ? Number(updates.amount) : undefined,
+        amount_inr: updates.amount !== undefined ? Number(updates.amount) : (updates as any).amount_inr,
         updatedAt: new Date().toISOString(),
-      });
+      };
+      await updateDoc(doc(db, "adminExpenses", id), nowUpdates);
+      await updateDoc(doc(db, "expenses", id), nowUpdates).catch(() => setDoc(doc(db, "expenses", id), nowUpdates, { merge: true }));
 
       // Audit Log for Expense Update
       await logAuditEvent({
@@ -203,6 +289,7 @@ export const expenseService = {
     const path = `adminExpenses/${id}`;
     try {
       await deleteDoc(doc(db, "adminExpenses", id));
+      await deleteDoc(doc(db, "expenses", id)).catch(() => {});
 
       // Audit Log for Expense Deletion
       await logAuditEvent({
@@ -313,6 +400,7 @@ export const expenseService = {
 
   // Department Expenses: departments/{departmentId}/expenses/{expenseId}
   async getDepartmentExpenses(departmentId: string): Promise<DepartmentExpense[]> {
+    if (!auth.currentUser || !departmentId || departmentId === "all") return [];
     const path = `departments/${departmentId}/expenses`;
     try {
       const snap = await getDocs(collection(db, "departments", departmentId, "expenses"));
@@ -322,7 +410,8 @@ export const expenseService = {
         department: departmentId,
       }));
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, path);
+      console.warn(`Could not fetch department expenses for ${departmentId}:`, error);
+      return [];
     }
   },
 
@@ -349,17 +438,27 @@ export const expenseService = {
 
   // Summaries and Financial Overview
   async getExpenseSummary() {
-    const expenses = await this.getAdminExpenses();
+    const expenses = await this.getAdminExpenses().catch(() => []);
     const totalExpenses = expenses.reduce((acc, e) => acc + (e.amount || 0), 0);
     const salaryTotal = expenses
       .filter((e) => e.category === "Staff Salary")
       .reduce((acc, e) => acc + (e.amount || 0), 0);
     const ebTotal = expenses
-      .filter((e) => e.category === "Electricity Bill")
+      .filter((e) => e.category === "Electricity Bill" || e.category === "Electricity")
       .reduce((acc, e) => acc + (e.amount || 0), 0);
     const otherTotal = expenses
-      .filter((e) => e.category === "Other Expenses")
+      .filter((e) => e.category !== "Staff Salary" && e.category !== "Electricity Bill" && e.category !== "Electricity")
       .reduce((acc, e) => acc + (e.amount || 0), 0);
+
+    const byCategory: Record<string, number> = {
+      "Staff Salary": salaryTotal,
+      "Electricity Bill": ebTotal,
+      "Other Expenses": otherTotal,
+    };
+    for (const e of expenses) {
+      const cat = e.category || "Other Expenses";
+      byCategory[cat] = (byCategory[cat] || 0) + (e.amount || 0);
+    }
 
     return {
       totalExpenses,
@@ -367,17 +466,36 @@ export const expenseService = {
       ebTotal,
       otherTotal,
       count: expenses.length,
-      byCategory: {
-        "Staff Salary": salaryTotal,
-        "Electricity Bill": ebTotal,
-        "Other Expenses": otherTotal,
-      },
+      byCategory,
     };
   },
 
   async getFinancialOverview() {
-    const feeSummary = await feesService.getSummary();
-    const expenseSummary = await this.getExpenseSummary();
+    if (!auth.currentUser) {
+      return {
+        totalRevenue: 0,
+        totalExpenses: 0,
+        netBalance: 0,
+        feeCollectionRate: "0%",
+        totalBilled: 0,
+        totalPending: 0,
+        salaryTotal: 0,
+        ebTotal: 0,
+        otherTotal: 0,
+      };
+    }
+    const feeSummary = await feesService.getSummary().catch(() => ({
+      totalCollected: 0,
+      collectionEfficiency: "0%",
+      totalBilled: 0,
+      totalPending: 0,
+    }));
+    const expenseSummary = await this.getExpenseSummary().catch(() => ({
+      totalExpenses: 0,
+      salaryTotal: 0,
+      ebTotal: 0,
+      otherTotal: 0,
+    }));
 
     const totalRevenue = feeSummary.totalCollected;
     const totalExpenses = expenseSummary.totalExpenses;

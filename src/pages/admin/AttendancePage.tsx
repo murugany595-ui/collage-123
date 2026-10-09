@@ -350,6 +350,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({ onShowToast }) =
                 className="w-full px-3 py-2 text-xs font-semibold rounded-2xl bg-white border border-slate-200 text-slate-700 focus:outline-none focus:border-violet-500"
               >
                 <option value="All">All Departments</option>
+                <option value="Artificial Intelligence & Data Science">AI&DS (Artificial Intelligence & Data Science)</option>
                 <option value="Computer Science & Engineering">CSE</option>
                 <option value="Electronics & Communication">ECE</option>
                 <option value="Mechanical Engineering">MECH</option>

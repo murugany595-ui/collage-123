@@ -44,18 +44,87 @@ export const staffService = {
   },
 
   async getAllStaff(currentRole?: string, userDept?: string): Promise<Staff[]> {
-    if (currentRole && currentRole !== "admin" && userDept && userDept !== "all") {
-      return this.getStaffByDepartment(userDept);
-    }
-
     try {
-      const depts = await departmentService.getDepartments();
+      const staffMap = new Map<string, Staff>();
+
+      // 1. Fetch from canonical department subcollections
+      const depts = await departmentService.getDepartments().catch(() => []);
       const staffPromises = depts.map((d) => this.getStaffByDepartment(d.id).catch(() => []));
       const results = await Promise.all(staffPromises);
-      return results.flat();
+      results.flat().forEach((st) => {
+        staffMap.set(st.id || (st as any).staff_id, st);
+      });
+
+      // 2. Also check top-level staffs collection if available
+      try {
+        const topSnap = await getDocs(collection(db, "staffs"));
+        topSnap.docs.forEach((d) => {
+          const data = d.data();
+          const salary = Number(data.monthly_salary !== undefined ? data.monthly_salary : (data.salary || 0));
+          const sObj: Staff = {
+            id: d.id,
+            staff_id: data.staff_id || d.id,
+            employeeId: data.staff_id || data.employeeId || d.id,
+            name: data.staff_name || data.name || "Staff Member",
+            staff_name: data.staff_name || data.name || "Staff Member",
+            department: data.department || "General",
+            designation: data.designation || "Faculty",
+            monthly_salary: salary,
+            salary: salary,
+            joining_date: data.joining_date || data.joiningDate || "",
+            joiningDate: data.joining_date || data.joiningDate || "",
+            status: data.status || "Active",
+            email: data.email || `${d.id.toLowerCase()}@college.edu`,
+            ...data,
+          } as Staff;
+          if (!staffMap.has(d.id)) {
+            staffMap.set(d.id, sObj);
+          }
+        });
+      } catch {}
+
+      let list = Array.from(staffMap.values());
+      if (currentRole && currentRole !== "admin" && userDept && userDept !== "all") {
+        list = list.filter((s) => s.department?.toLowerCase() === userDept.toLowerCase());
+      }
+      return list;
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, "staff");
+      console.warn("Could not fetch remote staff from Firestore:", error);
+      return [];
     }
+  },
+
+  subscribeStaff(callback: (staffList: Staff[]) => void): () => void {
+    const colRef = collection(db, "staffs");
+    return onSnapshot(
+      colRef,
+      (snap) => {
+        const list: Staff[] = snap.docs.map((d) => {
+          const data = d.data();
+          const salary = Number(data.monthly_salary !== undefined ? data.monthly_salary : (data.salary || 0));
+          return {
+            id: d.id,
+            staff_id: data.staff_id || d.id,
+            employeeId: data.staff_id || data.employeeId || d.id,
+            name: data.staff_name || data.name || "Staff Member",
+            staff_name: data.staff_name || data.name || "Staff Member",
+            department: data.department || "General",
+            designation: data.designation || "Faculty",
+            monthly_salary: salary,
+            salary: salary,
+            joining_date: data.joining_date || data.joiningDate || "",
+            joiningDate: data.joining_date || data.joiningDate || "",
+            status: data.status || "Active",
+            email: data.email || `${d.id.toLowerCase()}@college.edu`,
+            ...data,
+          } as Staff;
+        });
+        callback(list);
+      },
+      (error) => {
+        console.warn("Staff subscription error:", error);
+      }
+    );
   },
 
   async getStaffById(departmentId: string, staffId: string): Promise<Staff | null> {

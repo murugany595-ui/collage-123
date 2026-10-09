@@ -1,0 +1,11 @@
+staff_id,staff_name,department,designation,monthly_salary,joining_date,status
+STAFF001,Dr. R.Mohan,AI&DS,Professor,85000,2022-06-01,Active
+STAFF002,Ms. Priya Devi,AI&DS,Assistant Professor,62000,2023-07-10,Active
+STAFF003,Mr. Karthikeyan,CSE,Professor,90000,2021-06-15,Active
+STAFF004,Ms. Anitha,CSE,Assistant Professor,60000,2023-08-01,Active
+STAFF005,Mr. Suresh,ECE,Associate Professor,72000,2022-01-20,Active
+STAFF006,Ms. Kavitha,EEE,Assistant Professor,58000,2024-06-10,Active
+STAFF007,Mr. Prakash,MECH,Assistant Professor,57000,2023-06-05,Active
+STAFF008,Ms. Divya,IT,Assistant Professor,61000,2024-01-08,Active
+STAFF009,Dr. Senthil,AI&DS,Associate Professor,76000,2022-08-12,Active
+STAFF010,Ms. Meena,ECE,Assistant Professor,59000,2024-07-01,Active

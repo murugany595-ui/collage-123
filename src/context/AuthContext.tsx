@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import {
   signOut,
   sendPasswordResetEmail,
@@ -11,6 +11,7 @@ import { auth } from "../config/firebase";
 import { UserRole, UserProfile } from "../types";
 import { User } from "../services/api";
 import { authService, userService, FirestoreUserProfile } from "../services/firebase";
+import { isAuthorizedAdmin, isAuthorizedAccountant } from "../services/firebase/authService";
 
 export interface SignUpParams {
   name: string;
@@ -32,7 +33,7 @@ export interface AuthContextType {
   isLoading: boolean;
   activeRole: UserRole;
   login: (email: string, password: string, requiredRole?: UserRole) => Promise<void>;
-  loginStudent: (registerNumber: string, dateOfBirth: string) => Promise<void>;
+  loginStudent: (registerNumber: string, dob: string) => Promise<void>;
   signUp: (params: SignUpParams) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -101,38 +102,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [user, setUser] = useState<User | null>(() => {
-    try {
-      const saved = localStorage.getItem("edufee_user");
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-  const [profile, setProfile] = useState<UserProfile | null>(() => {
-    try {
-      const saved = localStorage.getItem("edufee_profile");
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-  const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem("edufee_token") || null;
-  });
-  const [isLoading, setIsLoading] = useState<boolean>(() => {
-    try {
-      return !!localStorage.getItem("edufee_token") && !localStorage.getItem("edufee_user");
-    } catch {
-      return false;
-    }
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [activeRole, setActiveRole] = useState<UserRole>(() => {
     return (localStorage.getItem("edufee_active_role") as UserRole) || "admin";
   });
 
+  const isLoggingInRef = useRef<boolean>(false);
+
   // Sync state from Firebase Auth and Firestore users/{uid}
   const syncAuthState = async (fbUser: FirebaseUser | null) => {
+    // If a manual login is currently progressing, avoid race-condition override
+    if (isLoggingInRef.current) {
+      return;
+    }
+
     if (fbUser) {
       setFirebaseUser(fbUser);
       try {
@@ -140,17 +126,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(idToken);
         localStorage.setItem("edufee_token", idToken);
 
-        const email = fbUser.email || "";
-        let firestoreProfile: any = null;
+        const email = (fbUser.email || "").toLowerCase().trim();
 
+        // 1. Determine role deterministically from credentials/UID first
+        let determinedRole: UserRole = "admin";
+        if (isAuthorizedAdmin(email, fbUser.uid)) {
+          determinedRole = "admin";
+        } else if (isAuthorizedAccountant(email, fbUser.uid)) {
+          determinedRole = "accountant";
+        } else {
+          const cachedRole = localStorage.getItem("edufee_active_role") as UserRole;
+          if (cachedRole && cachedRole !== "student") {
+            determinedRole = cachedRole;
+          }
+        }
+
+        // 2. Fetch or initialize Firestore profile
+        let firestoreProfile: any = null;
         try {
           firestoreProfile = await userService.getUserProfile(fbUser.uid);
         } catch (profileErr) {
-          console.warn("Could not fetch remote profile immediately (using local fallback if available):", profileErr);
+          console.warn("[AuthContext] Remote profile fetch notice:", profileErr);
         }
 
         if (!firestoreProfile) {
-          // Check local storage for cached profile matching current user
           try {
             const savedProfile = localStorage.getItem("edufee_profile");
             if (savedProfile) {
@@ -159,43 +158,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 firestoreProfile = parsed;
               }
             }
-          } catch {
-            // Ignore parse errors
-          }
+          } catch {}
         }
 
-        if (!firestoreProfile) {
-          // Provision initial Firestore profile
-          const savedRole = (localStorage.getItem("edufee_active_role") as UserRole) || "admin";
+        if (firestoreProfile?.role) {
+          // If Firestore profile exists, respect its role unless administrative override applies
+          if (isAuthorizedAdmin(email, fbUser.uid)) {
+            determinedRole = "admin";
+          } else if (isAuthorizedAccountant(email, fbUser.uid)) {
+            determinedRole = "accountant";
+          } else {
+            determinedRole = firestoreProfile.role as UserRole;
+          }
+        } else {
+          // Provision fallback profile record in background
           const displayName = fbUser.displayName || email.split("@")[0] || "User";
-          const dept = savedRole === "admin" || savedRole === "accountant" ? "all" : "general";
+          const dept = determinedRole === "admin" || determinedRole === "accountant" ? "all" : "general";
 
           firestoreProfile = {
             uid: fbUser.uid,
             name: displayName,
             email,
-            role: savedRole as any,
+            role: determinedRole as any,
             department: dept,
           };
 
-          try {
-            await userService.createUserProfile(firestoreProfile);
-          } catch (createErr) {
-            console.warn("Could not write initial profile to Firestore immediately:", createErr);
-          }
+          userService.createUserProfile(firestoreProfile).catch((err) => {
+            console.warn("[AuthContext] Profile provision notice:", err?.message || err);
+          });
         }
 
-        const role = (firestoreProfile.role as UserRole) || "admin";
-        setActiveRole(role);
-        localStorage.setItem("edufee_active_role", role);
+        setActiveRole(determinedRole);
+        localStorage.setItem("edufee_active_role", determinedRole);
 
         const userObj: User = {
           id: fbUser.uid,
           uid: fbUser.uid,
-          name: firestoreProfile.name,
-          email: firestoreProfile.email,
-          role,
-          department: firestoreProfile.department,
+          name: firestoreProfile.name || fbUser.displayName || email.split("@")[0] || "User",
+          email: firestoreProfile.email || email,
+          role: determinedRole,
+          department: firestoreProfile.department || (determinedRole === "admin" ? "all" : "general"),
           phone: firestoreProfile.phone,
           rollNo: firestoreProfile.rollNo,
           wardName: firestoreProfile.wardName,
@@ -206,23 +208,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile({
           id: fbUser.uid,
           uid: fbUser.uid,
-          email: firestoreProfile.email,
-          name: firestoreProfile.name,
-          role,
-          department: firestoreProfile.department,
-          phone: firestoreProfile.phone,
-          rollNo: firestoreProfile.rollNo,
-          wardName: firestoreProfile.wardName,
-          designation: firestoreProfile.designation,
+          email: userObj.email,
+          name: userObj.name,
+          role: determinedRole,
+          department: userObj.department,
+          phone: userObj.phone,
+          rollNo: userObj.rollNo,
+          wardName: userObj.wardName,
+          designation: userObj.designation,
         });
 
         localStorage.setItem("edufee_user", JSON.stringify(userObj));
         localStorage.setItem("edufee_profile", JSON.stringify(userObj));
       } catch (err) {
-        console.error("Error retrieving user profile from Firestore:", err);
-        // Fallback user object so the app never hangs or crashes
-        const email = fbUser.email || "";
-        const fallbackRole = (localStorage.getItem("edufee_active_role") as UserRole) || "admin";
+        console.error("[AuthContext] Error retrieving user profile:", err);
+        const email = (fbUser.email || "").toLowerCase().trim();
+        const fallbackRole = isAuthorizedAdmin(email, fbUser.uid)
+          ? "admin"
+          : isAuthorizedAccountant(email, fbUser.uid)
+          ? "accountant"
+          : ((localStorage.getItem("edufee_active_role") as UserRole) || "admin");
+
         const fallbackUser: User = {
           id: fbUser.uid,
           uid: fbUser.uid,
@@ -236,6 +242,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setActiveRole(fallbackRole);
       }
     } else {
+      // fbUser is null: Check if a valid student session is persisted in localStorage
+      const savedRole = localStorage.getItem("edufee_active_role");
+      const savedUserStr = localStorage.getItem("edufee_user");
+      if (savedRole === "student" && savedUserStr) {
+        try {
+          const parsedUser = JSON.parse(savedUserStr);
+          if (parsedUser && parsedUser.role === "student") {
+            setUser(parsedUser);
+            setProfile(parsedUser);
+            setActiveRole("student");
+            setFirebaseUser({
+              uid: parsedUser.uid || parsedUser.id || "student",
+              email: parsedUser.email || "",
+              displayName: parsedUser.name || "Student",
+            } as any);
+            setIsLoading(false);
+            return;
+          }
+        } catch {}
+      }
+
+      // No active session
       setFirebaseUser(null);
       setUser(null);
       setProfile(null);
@@ -256,7 +284,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (isMounted) {
         setIsLoading(false);
       }
-    }, 400);
+    }, 2500);
 
     let unsubscribe = () => {};
     if (auth) {
@@ -299,9 +327,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async (email: string, password: string, requiredRole?: UserRole) => {
+    isLoggingInRef.current = true;
     try {
       setIsLoading(true);
       const session = await authService.login(email, password, requiredRole as any);
+
       localStorage.setItem("edufee_token", session.user.uid);
       localStorage.setItem("edufee_active_role", session.user.role);
       setActiveRole(session.user.role as UserRole);
@@ -323,8 +353,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(userObj as any);
       localStorage.setItem("edufee_user", JSON.stringify(userObj));
       localStorage.setItem("edufee_profile", JSON.stringify(userObj));
-      if (auth.currentUser) {
+
+      if (auth?.currentUser) {
         setFirebaseUser(auth.currentUser);
+      } else {
+        setFirebaseUser({
+          uid: session.user.uid,
+          email: session.user.email,
+          displayName: session.user.name,
+        } as any);
       }
     } catch (err: any) {
       const msg = err?.message || "";
@@ -333,14 +370,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       throw new Error(formatAuthError(err, false));
     } finally {
+      isLoggingInRef.current = false;
       setIsLoading(false);
     }
   };
 
-  const loginStudent = async (registerNumber: string, dateOfBirth: string) => {
+  const loginStudent = async (registerNumber: string, dob: string) => {
+    isLoggingInRef.current = true;
     try {
       setIsLoading(true);
-      const session = await authService.loginStudent(registerNumber, dateOfBirth);
+      const session = await authService.loginStudent(registerNumber, dob);
+
       localStorage.setItem("edufee_token", session.user.uid);
       localStorage.setItem("edufee_active_role", "student");
       setActiveRole("student");
@@ -361,12 +401,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(userObj as any);
       localStorage.setItem("edufee_user", JSON.stringify(userObj));
       localStorage.setItem("edufee_profile", JSON.stringify(userObj));
-      if (auth.currentUser) {
+
+      if (auth?.currentUser) {
         setFirebaseUser(auth.currentUser);
+      } else {
+        setFirebaseUser({
+          uid: session.user.uid,
+          email: session.user.email,
+          displayName: session.user.name,
+        } as any);
       }
     } catch (err: any) {
-      throw new Error(err?.message || "Invalid Register ID or Date of Birth");
+      console.error("[AuthContext] Student login error:", err?.message || err);
+      throw new Error(err?.message || "Invalid Registration ID or Date of Birth.");
     } finally {
+      isLoggingInRef.current = false;
       setIsLoading(false);
     }
   };

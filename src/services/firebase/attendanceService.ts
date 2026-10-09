@@ -8,7 +8,7 @@ import {
   where,
   onSnapshot,
 } from "firebase/firestore";
-import { db } from "../../config/firebase";
+import { db, auth } from "../../config/firebase";
 import { handleFirestoreError, OperationType } from "./firestoreErrors";
 import { departmentService } from "./departmentService";
 
@@ -31,6 +31,10 @@ export const attendanceService = {
     departmentId: string,
     filters?: { date?: string; year?: string; section?: string; studentId?: string }
   ): Promise<AttendanceRecord[]> {
+    if (!auth.currentUser) return [];
+    if (departmentId === "all" || !departmentId) {
+      return this.getAllAttendance(undefined, undefined, filters);
+    }
     const path = `departments/${departmentId}/attendance`;
     try {
       const colRef = collection(db, "departments", departmentId, "attendance");
@@ -65,6 +69,7 @@ export const attendanceService = {
     userDept?: string,
     filters?: { date?: string; year?: string; section?: string; studentId?: string }
   ): Promise<AttendanceRecord[]> {
+    if (!auth.currentUser) return [];
     if (currentRole && currentRole !== "admin" && userDept && userDept !== "all") {
       return this.getAttendanceByDepartment(userDept, filters);
     }

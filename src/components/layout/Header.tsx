@@ -119,6 +119,7 @@ export const Header: React.FC<HeaderProps> = ({
       dashboard: { title: "Executive Dashboard", category: "Core Operations" },
       "students-list": { title: "Student Directory", category: "Students" },
       "add-student": { title: "Add New Student", category: "Students" },
+      "edit-student": { title: "Edit Student Details", category: "Students" },
       "student-details": { title: "Student Profile & Ledger", category: "Students" },
       fees: { title: "Fee Management & Invoices", category: "Finance" },
       "generate-monthly-fees": { title: "Generate Monthly Fees", category: "Finance" },

@@ -20,6 +20,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { UserRole, ROLE_CONFIGS } from "../types";
 import { api } from "../services/api";
+import { PasswordStrengthIndicator } from "../components/common/PasswordStrengthIndicator";
 
 export interface UsersPageProps {
   onShowToast?: (msg: string, type: "success" | "error" | "info") => void;
@@ -36,6 +37,7 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast = () => {} }) 
 
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<UserRole>("faculty");
   const [newDept, setNewDept] = useState("Computer Science & Engineering");
 
@@ -78,6 +80,7 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast = () => {} }) 
       onShowToast(`User account record for ${newName} created in Firebase!`, "success");
       setNewName("");
       setNewEmail("");
+      setNewPassword("");
       loadUsers();
     } catch (err: any) {
       onShowToast(err.message || "Failed to create user account.", "error");
@@ -301,6 +304,18 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast = () => {} }) 
                   onChange={(e) => setNewEmail(e.target.value)}
                   className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Initial Password</label>
+                <input
+                  type="password"
+                  placeholder="Set initial password (optional)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 font-mono"
+                />
+                <PasswordStrengthIndicator password={newPassword} />
               </div>
 
               <div>

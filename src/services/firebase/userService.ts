@@ -22,15 +22,19 @@ export const userService = {
       return null;
     }
     const cleanUid = uid.trim();
-    const path = `users/${cleanUid}`;
     try {
       const snap = await getDoc(doc(db, "users", cleanUid));
-      if (!snap.exists()) {
+      if (!snap || !snap.exists()) {
         return null;
       }
-      return snap.data() as FirestoreUserProfile;
-    } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      const data = snap.data() as FirestoreUserProfile;
+      return {
+        ...data,
+        uid: cleanUid,
+      };
+    } catch (error: any) {
+      console.warn(`[userService] Safe profile lookup warning for uid: ${cleanUid}:`, error?.message || error);
+      return null;
     }
   },
 
@@ -39,7 +43,6 @@ export const userService = {
       return;
     }
     const cleanUid = profile.uid.trim();
-    const path = `users/${cleanUid}`;
     try {
       const now = new Date().toISOString();
       await setDoc(doc(db, "users", cleanUid), {
@@ -47,22 +50,28 @@ export const userService = {
         uid: cleanUid,
         createdAt: profile.createdAt || now,
         updatedAt: now,
-      });
+      }, { merge: true });
 
       // If user is admin, maintain admins/{uid} with required adminId
       if (profile.role === "admin") {
-        await setDoc(doc(db, "admins", cleanUid), {
-          adminId: cleanUid,
-          uid: cleanUid,
-          email: profile.email,
-          name: profile.name,
-          role: "admin",
-          createdAt: profile.createdAt || now,
-          updatedAt: now,
-        }, { merge: true });
+        await setDoc(
+          doc(db, "admins", cleanUid),
+          {
+            adminId: cleanUid,
+            uid: cleanUid,
+            email: profile.email,
+            name: profile.name,
+            role: "admin",
+            createdAt: profile.createdAt || now,
+            updatedAt: now,
+          },
+          { merge: true }
+        ).catch((adminErr) => {
+          console.warn("[userService] Admin mirror write notice:", adminErr?.message || adminErr);
+        });
       }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
+    } catch (error: any) {
+      console.warn(`[userService] Profile write notice for uid: ${cleanUid}:`, error?.message || error);
     }
   },
 

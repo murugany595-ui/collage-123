@@ -7,7 +7,7 @@ import {
   updateDoc,
   deleteDoc,
 } from "firebase/firestore";
-import { db } from "../../config/firebase";
+import { db, auth } from "../../config/firebase";
 import { handleFirestoreError, OperationType } from "./firestoreErrors";
 import { departmentService } from "./departmentService";
 
@@ -34,6 +34,10 @@ export interface ExamFeeRecord {
 
 export const examService = {
   async getExamsByDepartment(departmentId: string): Promise<ExamFeeRecord[]> {
+    if (!auth.currentUser) return [];
+    if (departmentId === "all" || !departmentId) {
+      return this.getAllExams();
+    }
     const path = `departments/${departmentId}/exams`;
     try {
       const snap = await getDocs(collection(db, "departments", departmentId, "exams"));
@@ -48,6 +52,7 @@ export const examService = {
   },
 
   async getAllExams(currentRole?: string, userDept?: string): Promise<ExamFeeRecord[]> {
+    if (!auth.currentUser) return [];
     if (currentRole && currentRole !== "admin" && userDept && userDept !== "all") {
       return this.getExamsByDepartment(userDept);
     }

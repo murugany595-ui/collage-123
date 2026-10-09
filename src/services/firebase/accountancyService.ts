@@ -31,6 +31,7 @@ export const accountancyService = {
    * Each document has: accountancyId, name, email, role, createdAt
    */
   async getAccountants(searchQuery?: string): Promise<AccountancyUser[]> {
+    if (!auth.currentUser) return [];
     try {
       // 1. Fetch from dedicated 'accountancy' collection
       const snap = await getDocs(collection(db, "accountancy"));

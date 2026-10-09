@@ -133,12 +133,19 @@ export const AuditLogsViewer: React.FC = () => {
             className="text-xs py-2 px-3 rounded-xl border border-slate-200 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-700"
           >
             <option value="all">All Operations</option>
+            <option value="CREATE_STUDENT">Student Creation</option>
+            <option value="UPDATE_STUDENT">Student Update</option>
+            <option value="DELETE_STUDENT">Student Deletion</option>
+            <option value="CREATE_FEE_INVOICE">Fee Invoice Creation</option>
+            <option value="UPDATE_FEE_INVOICE">Fee Invoice Edit</option>
+            <option value="DELETE_FEE_INVOICE">Fee Invoice Deletion</option>
+            <option value="FEE_PAYMENT_COLLECT">Fee Payment Collection</option>
+            <option value="BATCH_GENERATE_FEES">Batch Fees Generation</option>
             <option value="FEE_SETTING_UPDATE">Fee Setting Update</option>
-            <option value="FEE_STRUCTURE_SAVE">Fee Structure Save</option>
-            <option value="FEE_PAYMENT_COLLECT">Fee Payment Collect</option>
-            <option value="EXPENSE_CREATE">Expense Create</option>
+            <option value="FEE_CATEGORY_DELETE">Fee Category Delete</option>
+            <option value="EXPENSE_CREATE">Expense Creation</option>
             <option value="EXPENSE_UPDATE">Expense Update</option>
-            <option value="EXPENSE_DELETE">Expense Delete</option>
+            <option value="EXPENSE_DELETE">Expense Deletion</option>
           </select>
         </div>
       </div>

@@ -64,7 +64,8 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
   const loadStudentProfile = async () => {
     try {
       setLoadingStudent(true);
-      const userDept = (user?.department || "cse").toLowerCase().trim();
+      const rawDept = user?.department?.toLowerCase().trim();
+      const userDept = rawDept && rawDept !== "all" ? rawDept : "cse";
       const userReg = (user?.rollNo || user?.registerNumber || "").toUpperCase().trim();
       const uid = user?.id || user?.uid || "";
 
@@ -124,18 +125,35 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({
   const loadFees = async () => {
     try {
       setLoadingFees(true);
-      const dept = (studentProfile?.department || user?.department || "cse").toLowerCase().trim();
+      const rawDept = (studentProfile?.department || user?.department)?.toLowerCase().trim();
+      const dept = rawDept && rawDept !== "all" ? rawDept : "cse";
       const deptFees = await feesService.getFeesByDepartment(dept).catch(() => []);
 
       const studentId = studentProfile?.id || user?.id || user?.uid || "";
       const sName = (studentProfile?.name || user?.name || "").toLowerCase().trim();
+      const userReg = (studentProfile?.registerNumber || user?.rollNo || user?.registerNumber || "").toUpperCase().trim();
 
-      const studentInvoices = deptFees.filter((f) => {
+      let studentInvoices = deptFees.filter((f) => {
+        const fReg = ((f as any).studentRegisterNumber || (f as any).rollNo || "").toUpperCase().trim();
         return (
-          (studentId && f.studentId === studentId) ||
+          (studentId && (f.studentId === studentId || (f as any).uid === studentId)) ||
+          (userReg && fReg === userReg) ||
           (sName && f.studentName?.toLowerCase().trim() === sName)
         );
       });
+
+      // Fallback search across all departments if no invoices in current department
+      if (studentInvoices.length === 0) {
+        const allFees = await feesService.getAllFees().catch(() => []);
+        studentInvoices = allFees.filter((f) => {
+          const fReg = ((f as any).studentRegisterNumber || (f as any).rollNo || "").toUpperCase().trim();
+          return (
+            (studentId && (f.studentId === studentId || (f as any).uid === studentId)) ||
+            (userReg && fReg === userReg) ||
+            (sName && f.studentName?.toLowerCase().trim() === sName)
+          );
+        });
+      }
 
       setFees(studentInvoices);
     } catch (err) {

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { ROLE_CONFIGS } from "../types";
+import { PasswordStrengthIndicator } from "../components/common/PasswordStrengthIndicator";
 
 export interface ProfilePageProps {
   onShowToast?: (msg: string, type: "success" | "error" | "info") => void;
@@ -245,6 +246,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onShowToast = () => {}
                 placeholder="At least 6 characters"
                 className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
               />
+              <PasswordStrengthIndicator password={newPw} />
             </div>
 
             <div>

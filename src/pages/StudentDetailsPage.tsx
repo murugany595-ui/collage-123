@@ -17,6 +17,7 @@ import {
   HeartHandshake,
   Download,
   PlusCircle,
+  Edit2,
 } from "lucide-react";
 import { api } from "../services/api";
 
@@ -211,18 +212,26 @@ export const StudentDetailsPage: React.FC<StudentDetailsPageProps> = ({
 
           <div className="flex flex-wrap items-center gap-2.5">
             <button
+              type="button"
+              onClick={() => onNavigate("edit-student", studentData.id)}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+            >
+              <Edit2 className="w-4 h-4" />
+              <span>Edit Student</span>
+            </button>
+            <button
               onClick={() => {
                 const pendingInv = invoices.find((i) => i.balance > 0);
                 onCollectFee(pendingInv ? { ...studentData, ...pendingInv, student: studentData.name } : studentData);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer"
             >
               <CreditCard className="w-4 h-4" />
               <span>Collect Fee</span>
             </button>
             <button
               onClick={() => window.print()}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition cursor-pointer"
             >
               <Printer className="w-4 h-4" />
               <span>Print Profile</span>

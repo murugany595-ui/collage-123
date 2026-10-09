@@ -56,13 +56,13 @@ export const MonthlyExpenseReportModal: React.FC<MonthlyExpenseReportModalProps>
   const feesCollected = reportData?.financialSummary?.feesCollected || 0;
   const totalExpenses = reportData?.financialSummary?.totalExpenses || 0;
   const netBalance = reportData?.financialSummary?.netBalance || 0;
-  const isSurplus不易 = netBalance >= 0;
+  const isSurplus = netBalance >= 0;
 
   const categoryBreakdown = reportData?.categoryBreakdown || [];
 
   const handleExportCSV = () => {
     const headers = ["Category", "Total Amount (INR)", "Vouchers Logged", "Share (%)"];
-    const rows不易 = categoryBreakdown.map((c: any) => [
+    const rows = categoryBreakdown.map((c: any) => [
       `"${c.category}"`,
       c.amount,
       c.count,
@@ -84,7 +84,7 @@ export const MonthlyExpenseReportModal: React.FC<MonthlyExpenseReportModalProps>
     const csv = "data:text/csv;charset=utf-8," + [
       `"COLLEGE MONTHLY EXPENSE AUDIT REPORT - ${selectedMonth}"`,
       headers.join(","),
-      ...rows不易.map((r: any) => r.join(",")),
+      ...rows.map((r: any) => r.join(",")),
       summaryRow.join(","),
       netRow.join(","),
     ].join("\n");
@@ -206,8 +206,8 @@ export const MonthlyExpenseReportModal: React.FC<MonthlyExpenseReportModalProps>
                   <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider block">
                     Net Operating Balance
                   </span>
-                  <span className={`text-xl font-extrabold mt-0.5 block ${isSurplus不易 ? "text-blue-300" : "text-amber-400"}`}>
-                    {isSurplus不易 ? "+" : "-"}₹{Math.abs(netBalance).toLocaleString("en-IN")}
+                  <span className={`text-xl font-extrabold mt-0.5 block ${isSurplus ? "text-blue-300" : "text-amber-400"}`}>
+                    {isSurplus ? "+" : "-"}₹{Math.abs(netBalance).toLocaleString("en-IN")}
                   </span>
                   <span className="text-[10px] text-slate-400">Fees − Total Expenses</span>
                 </div>

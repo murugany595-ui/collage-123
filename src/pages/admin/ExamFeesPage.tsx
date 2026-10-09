@@ -411,6 +411,7 @@ export const ExamFeesPage: React.FC<ExamFeesPageProps> = ({ onShowToast }) => {
               className="px-3 py-2 text-xs font-semibold rounded-2xl bg-white/90 border border-slate-200 text-slate-700 focus:outline-none focus:border-violet-500"
             >
               <option value="All">All Departments</option>
+              <option value="Artificial Intelligence & Data Science">AI&DS</option>
               <option value="Computer Science & Engineering">CSE</option>
               <option value="Electronics & Communication">ECE</option>
               <option value="Mechanical Engineering">MECH</option>
@@ -687,6 +688,7 @@ export const ExamFeesPage: React.FC<ExamFeesPageProps> = ({ onShowToast }) => {
                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                     className="w-full px-3 py-2 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-violet-500"
                   >
+                    <option value="Artificial Intelligence & Data Science">AI&DS (Artificial Intelligence & Data Science)</option>
                     <option value="Computer Science & Engineering">CSE</option>
                     <option value="Electronics & Communication">ECE</option>
                     <option value="Mechanical Engineering">MECH</option>

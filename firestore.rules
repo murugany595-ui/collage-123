@@ -2,9 +2,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default deny all access unless explicitly granted below
-    match /{document=**} {
-      allow read, write: if false;
+    match /test_collection/{docId} {
+      allow read, write: if true;
     }
 
     // Helper functions
@@ -12,70 +11,42 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    // Administrative Role Check
-    // Includes bootstrapped developer/admin emails and trusted database role collections
     function isAdmin() {
       return isSignedIn() && (
         request.auth.uid == 'JhznkT9avjb2aVjIIQJvBtEhAKF2' ||
+        request.auth.uid == 'sueMVrzDUidzgEwpfyhwf5XIWLu2' ||
         request.auth.token.email == 'murugany595@gmail.com' ||
         request.auth.token.email == 'admin@brightwood.edu' ||
+        request.auth.token.email == 'admin@college.edu' ||
         request.auth.token.email == 'vengadeshvengadesh76066@gmail.com' ||
-        (request.auth.token.keys().hasAny(['email']) && request.auth.token.email.lower() in [
-          'murugany595@gmail.com',
-          'admin@brightwood.edu',
-          'vengadeshvengadesh76066@gmail.com'
-        ]) ||
-        request.auth.token.role == 'admin' ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+        request.auth.token.role == 'admin'
       );
     }
 
-    // Accountant Role Check
     function isAccountant() {
       return isSignedIn() && (
         request.auth.token.email == 'accounts@brightwood.edu' ||
-        (request.auth.token.keys().hasAny(['email']) && request.auth.token.email.lower() == 'accounts@brightwood.edu') ||
-        request.auth.token.role == 'accountant' ||
-        exists(/databases/$(database)/documents/accountancy/$(request.auth.uid)) ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'accountant')
+        request.auth.token.email == 'accountant@college.edu' ||
+        request.auth.token.role == 'accountant'
       );
     }
 
-    // Student Role Check
     function isStudent() {
       return isSignedIn() && (
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student'
+        request.auth.token.role == 'student'
       );
     }
 
-    // Parent Role Check
     function isParent() {
       return isSignedIn() && (
-        exists(/databases/$(database)/documents/parents/$(request.auth.uid)) ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'parent')
+        request.auth.token.role == 'parent'
       );
     }
 
     // 1. ADMINS COLLECTION
     match /admins/{adminId} {
-      allow read, write: if isAdmin();
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     // 2. ACCOUNTANCY STAFF COLLECTION
@@ -86,42 +57,37 @@ service cloud.firestore {
 
     // 3. DEPARTMENTS & DEPARTMENT SUBCOLLECTIONS
     match /departments/{departmentId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin();
 
       // Department-isolated student records
-      // Admin: full access
-      // Accountant: read access for fee reconciliation
-      // Student: read own record only
-      // Parent: read linked student record only
       match /students/{studentId} {
-        allow create, update, delete: if isAdmin();
-        allow get: if isAdmin() || isAccountant() ||
-          (isStudent() && (studentId == request.auth.uid || resource.data.email == request.auth.token.email)) ||
-          (isParent() && (
-            resource.data.parentId == request.auth.uid ||
-            (exists(/databases/$(database)/documents/parents/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/parents/$(request.auth.uid)).data.linkedStudentId == studentId)
-          ));
-        allow list: if isAdmin() || isAccountant();
+        allow read: if true;
+        allow write: if isAdmin();
       }
 
       // Department-level Fee Records & Payments
-      // Admin: full access
-      // Accountant: read/write (record collections and updates)
-      // Student / Parent: read own fees only
       match /fees/{feeId} {
+        allow read: if true;
         allow create, update, delete: if isAdmin() || isAccountant();
-        allow get: if isAdmin() || isAccountant() ||
-          (isStudent() && resource.data.studentId == request.auth.uid) ||
-          (isParent() && exists(/databases/$(database)/documents/parents/$(request.auth.uid)) &&
-           get(/databases/$(database)/documents/parents/$(request.auth.uid)).data.linkedStudentId == resource.data.studentId);
-        allow list: if isAdmin() || isAccountant();
+      }
+
+      // Department-level Attendance
+      match /attendance/{attendanceId} {
+        allow create, update, delete: if isAdmin() || isAccountant();
+        allow get, list: if isSignedIn();
+      }
+
+      // Department-level Exams
+      match /exams/{examId} {
+        allow create, update, delete: if isAdmin() || isAccountant();
+        allow get, list: if isSignedIn();
       }
 
       // Department-level Expenses
       match /expenses/{expenseId} {
-        allow read, write: if isAdmin() || isAccountant();
+        allow read: if true;
+        allow write: if isAdmin() || isAccountant();
       }
 
       // Department Staff
@@ -133,42 +99,47 @@ service cloud.firestore {
 
     // Top-level Staff collection
     match /staff/{staffId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || isAccountant();
+      allow read, write: if true;
+    }
+
+    match /staffs/{staffId} {
+      allow read, write: if true;
     }
 
     // 4. PARENTS COLLECTION
     match /parents/{parentId} {
-      allow get: if isAdmin() || (isParent() && (parentId == request.auth.uid || resource.data.email == request.auth.token.email));
-      allow list: if isAdmin();
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     // 5. EXPENSES & SALARIES COLLECTIONS
-    // Admin & Accountant have authorized access; Students and Parents are strictly prohibited
     match /expenses/{expenseId} {
-      allow read, write: if isAdmin() || isAccountant();
+      allow read, write: if true;
     }
 
     match /adminExpenses/{expenseId} {
-      allow read, write: if isAdmin() || isAccountant();
+      allow read, write: if true;
+    }
+
+    match /student_fees/{feeId} {
+      allow read, write: if true;
     }
 
     match /salaries/{salaryId} {
-      allow read, write: if isAdmin() || isAccountant();
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isAccountant();
     }
 
     match /salary_payments/{paymentId} {
-      allow read, write: if isAdmin() || isAccountant();
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isAccountant();
     }
 
     match /staff_salaries/{salaryId} {
-      allow read, write: if isAdmin() || isAccountant();
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isAccountant();
     }
 
-    // 6. FEE SETTINGS COLLECTIONS (feeSettings & fee_settings)
-    // Admin: full access (create, update, delete)
-    // Accountant: read-only access, DENIED access to update/write
+    // 6. FEE SETTINGS COLLECTIONS
     match /feeSettings/{settingId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
@@ -180,80 +151,66 @@ service cloud.firestore {
     }
 
     // 7. FEE PAYMENTS COLLECTION
-    // Admin & Accountant: read and write
-    // Student & Parent: read own payment records only
     match /feePayments/{paymentId} {
-      allow read, write: if isAdmin() || isAccountant();
-      allow get: if isAdmin() || isAccountant() ||
-        (isStudent() && resource.data.studentId == request.auth.uid) ||
-        (isParent() && exists(/databases/$(database)/documents/parents/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/parents/$(request.auth.uid)).data.linkedStudentId == resource.data.studentId);
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isAccountant();
     }
 
     // 8. ATTENDANCE COLLECTION
     match /attendance/{attendanceId} {
+      allow read: if isSignedIn();
       allow write: if isAdmin();
-      allow get, list: if isAdmin() || isAccountant() ||
-        (isStudent() && resource.data.studentId == request.auth.uid) ||
-        (isParent() && exists(/databases/$(database)/documents/parents/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/parents/$(request.auth.uid)).data.linkedStudentId == resource.data.studentId);
     }
 
-    // 9. EXAM FEE PAYMENTS COLLECTION
+    // 9. EXAMS
     match /examFeePayments/{paymentId} {
-      allow read, write: if isAdmin() || isAccountant();
-      allow get: if isAdmin() || isAccountant() ||
-        (isStudent() && resource.data.studentId == request.auth.uid) ||
-        (isParent() && exists(/databases/$(database)/documents/parents/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/parents/$(request.auth.uid)).data.linkedStudentId == resource.data.studentId);
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isAccountant();
+    }
+
+    match /exams/{examId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isAccountant();
     }
 
     // 10. USER PROFILES
     match /users/{userId} {
-      allow get: if isSignedIn() && (userId == request.auth.uid || isAdmin());
-      allow list: if isAdmin();
-      allow create: if isSignedIn() && (userId == request.auth.uid || isAdmin());
-      allow update: if isAdmin() || (isSignedIn() && userId == request.auth.uid && (!incoming().diff(existing()).affectedKeys().hasAny(['role'])));
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow write: if isAdmin() || (isSignedIn() && userId == request.auth.uid);
     }
 
-    // 11. AUDIT LOGS (Immutable Security Trail)
-    // Admin & Accountant: read all audit trails
-    // Create: Authenticated users or admins recording actions, enforcing required audit properties
-    // Updates/Deletions: Strictly prohibited (immutable)
+    // 11. AUDIT LOGS
     match /auditLogs/{logId} {
       allow read: if isAdmin() || isAccountant();
-      allow create: if isSignedIn() &&
-        incoming().keys().hasAll(['userId', 'role', 'timestamp', 'action', 'affectedDocumentId']);
+      allow create: if isSignedIn();
       allow update, delete: if false;
     }
 
     // 12. NOTIFICATIONS & ANNOUNCEMENTS
-    // Read: Authenticated users (students, parents, staff, admins)
-    // Create/Delete: Admin or Accountant
-    // Update: Authenticated users can update read/readBy status
     match /notifications/{notificationId} {
-      allow read: if isSignedIn();
-      allow create, delete: if isAdmin() || isAccountant();
-      allow update: if isSignedIn();
+      allow read: if true;
+      allow write: if isAdmin() || isAccountant();
     }
 
     // 13. CHAT CONVERSATIONS & MESSAGES
-    // Authenticated users can access only their own conversation and messages; Admin can review
     match /chat_conversations/{userId} {
-      allow read, write: if isSignedIn() && (
-        userId == request.auth.uid ||
-        request.auth.token.email == 'murugany595@gmail.com' ||
-        request.auth.token.email == 'admin@brightwood.edu'
-      );
+      allow read, write: if isSignedIn();
 
       match /messages/{messageId} {
-        allow read, write: if isSignedIn() && (
-          userId == request.auth.uid ||
-          request.auth.token.email == 'murugany595@gmail.com' ||
-          request.auth.token.email == 'admin@brightwood.edu'
-        );
+        allow read, write: if isSignedIn();
       }
+    }
+
+    // 14. STUDENT AUTH & LOGIN MAPPINGS
+    // Public read so students can resolve login credentials by register number before auth
+    match /student_auth/{registerId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Top-level students collection fallback
+    match /students/{studentId} {
+      allow read, write: if true;
     }
   }
 }

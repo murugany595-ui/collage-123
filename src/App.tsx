@@ -14,6 +14,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { StudentsListPage } from "./pages/StudentsListPage";
 import { AddStudentPage } from "./pages/AddStudentPage";
+import { EditStudentPage } from "./pages/EditStudentPage";
 import { StudentDetailsPage } from "./pages/StudentDetailsPage";
 import { FeesPage } from "./pages/FeesPage";
 import { GenerateMonthlyFeesPage } from "./pages/GenerateMonthlyFeesPage";
@@ -28,6 +29,8 @@ import { AcademicInfoPage } from "./pages/AcademicInfoPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { StaffManagementPage } from "./pages/StaffManagementPage";
+import { CsvImportPage } from "./pages/CsvImportPage";
 
 // Dedicated Role Portal Views
 import { StudentPortalView } from "./pages/portals/StudentPortalView";
@@ -39,7 +42,7 @@ import { CollegeChatbot } from "./components/chatbot/CollegeChatbot";
 import { ChatbotErrorBoundary } from "./components/chatbot/ChatbotErrorBoundary";
 
 const MainLayout: React.FC = () => {
-  const { user, activeRole, isLoading } = useAuth();
+  const { user, firebaseUser, activeRole, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<string>("dashboard");
   const [selectedStudentId, setSelectedStudentId] = useState<string>("STU-1042");
   const [mobileOpen, setMobileOpen] = useState<boolean>(false);
@@ -65,7 +68,7 @@ const MainLayout: React.FC = () => {
   // Sync default tab when user signs in or role changes
   useEffect(() => {
     if (user && activeRole) {
-      if (activeRole === "student" || activeRole === "parent" || activeRole === "accountant") {
+      if (activeRole === "student" || activeRole === "parent" || activeRole === "accountant" || activeRole === "admin") {
         setActiveTab("dashboard");
       }
     }
@@ -89,6 +92,8 @@ const MainLayout: React.FC = () => {
         "dashboard",
         "fees",
         "expenses",
+        "staff-management",
+        "csv-import",
         "generate-monthly-fees",
         "payment-approval",
         "fee-categories",
@@ -113,8 +118,8 @@ const MainLayout: React.FC = () => {
     setReceiptModal({ open: true, receipt });
   };
 
-  // Loading Splash: Only show if actively authenticating a saved token
-  if (isLoading && !user && typeof window !== "undefined" && localStorage.getItem("edufee_token")) {
+  // Loading Splash: Show while Firebase Auth is determining session state
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
         <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-xl mb-6">
@@ -127,7 +132,7 @@ const MainLayout: React.FC = () => {
     );
   }
 
-  // Unauthenticated Guard
+  // Unauthenticated Guard: Show Login if no active user session
   if (!user) {
     return <LoginPage onShowToast={showToast} />;
   }
@@ -179,6 +184,12 @@ const MainLayout: React.FC = () => {
           />
         );
       }
+      if (activeTab === "staff-management") {
+        return <StaffManagementPage onShowToast={showToast} onNavigate={handleNavigate} />;
+      }
+      if (activeTab === "csv-import") {
+        return <CsvImportPage onShowToast={showToast} onNavigate={handleNavigate} />;
+      }
       if (activeTab === "generate-monthly-fees") {
         return <GenerateMonthlyFeesPage onShowToast={showToast} onNavigate={handleNavigate} />;
       }
@@ -229,6 +240,15 @@ const MainLayout: React.FC = () => {
             <StudentsListPage
               onNavigate={handleNavigate}
               onCollectFee={handleCollectFee}
+              onShowToast={showToast}
+            />
+          );
+        case "edit-student":
+          return (
+            <EditStudentPage
+              studentId={selectedStudentId}
+              onNavigate={handleNavigate}
+              onShowToast={showToast}
             />
           );
         case "student-details":
@@ -273,11 +293,20 @@ const MainLayout: React.FC = () => {
           <StudentsListPage
             onNavigate={handleNavigate}
             onCollectFee={handleCollectFee}
+            onShowToast={showToast}
           />
         );
       case "add-student":
         return (
           <AddStudentPage
+            onNavigate={handleNavigate}
+            onShowToast={showToast}
+          />
+        );
+      case "edit-student":
+        return (
+          <EditStudentPage
+            studentId={selectedStudentId}
             onNavigate={handleNavigate}
             onShowToast={showToast}
           />
@@ -304,6 +333,20 @@ const MainLayout: React.FC = () => {
         return (
           <ExpenseManagementPage
             onShowToast={(type, title, msg) => showToast(`${title}: ${msg}`, type === "error" ? "error" : "success")}
+          />
+        );
+      case "staff-management":
+        return (
+          <StaffManagementPage
+            onShowToast={showToast}
+            onNavigate={handleNavigate}
+          />
+        );
+      case "csv-import":
+        return (
+          <CsvImportPage
+            onShowToast={showToast}
+            onNavigate={handleNavigate}
           />
         );
       case "exam-fees":

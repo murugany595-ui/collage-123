@@ -18,6 +18,7 @@ import {
   CreditCard,
   Mail,
   Phone,
+  RefreshCw,
 } from "lucide-react";
 import { api } from "../services/api";
 import { StudentsListSkeleton, StudentsTableSkeletonRows } from "../components/skeletons";
@@ -72,7 +73,11 @@ export const StudentsListPage: React.FC<StudentsListPageProps> = ({
   };
 
   const filteredStudents = students.filter((s) => {
-    const matchesGrade = gradeFilter === "ALL" || s.grade === gradeFilter;
+    const matchesGrade =
+      gradeFilter === "ALL" ||
+      s.grade === gradeFilter ||
+      (gradeFilter === "B.Tech AI&DS" &&
+        (s.department === "aids" || s.grade?.includes("AI&DS") || s.grade?.includes("Data Science")));
     const matchesStatus = statusFilter === "ALL" || s.status === statusFilter;
     return matchesGrade && matchesStatus;
   });
@@ -105,6 +110,7 @@ export const StudentsListPage: React.FC<StudentsListPageProps> = ({
             className="px-3.5 py-2.5 text-xs rounded-2xl border border-violet-100/80 focus:outline-hidden focus:ring-2 focus:ring-violet-500/20 bg-white/80 font-semibold text-slate-700 shadow-2xs"
           >
             <option value="ALL">All Departments</option>
+            <option value="B.Tech AI&DS">B.Tech AI & Data Science (AI&DS)</option>
             <option value="B.Tech CSE">B.Tech Computer Science</option>
             <option value="B.Tech ECE">B.Tech Electronics</option>
             <option value="B.Tech MECH">B.Tech Mechanical</option>
@@ -128,8 +134,19 @@ export const StudentsListPage: React.FC<StudentsListPageProps> = ({
         {/* Action Buttons */}
         <div className="flex items-center gap-2.5 self-start lg:self-auto">
           <button
+            type="button"
+            onClick={() => fetchStudents()}
+            title="Refresh student list"
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-2.5 bg-white/80 hover:bg-white text-slate-700 rounded-2xl text-xs font-semibold border border-violet-100 shadow-2xs transition cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-violet-600" : "text-slate-500"}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
+          <button
+            type="button"
             onClick={() => onNavigate("add-student")}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white rounded-2xl text-xs font-bold shadow-md shadow-violet-500/20 transition-all hover:scale-102"
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white rounded-2xl text-xs font-bold shadow-md shadow-violet-500/20 transition-all hover:scale-102 cursor-pointer"
           >
             <UserPlus className="w-4 h-4" />
             <span>Add Student</span>
@@ -237,12 +254,14 @@ export const StudentsListPage: React.FC<StudentsListPageProps> = ({
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
+                            type="button"
                             onClick={() => {
+                              const sId = s.id || s.studentId || s.registerNumber || s.rollNo || s.roll;
                               onSelectStudent(s);
-                              onNavigate("add-student");
+                              onNavigate("edit-student", sId);
                             }}
-                            title="Edit Student"
-                            className="p-2 text-slate-500 hover:text-purple-700 hover:bg-purple-100/60 rounded-xl transition"
+                            title="Edit Student Details"
+                            className="p-2 text-slate-500 hover:text-purple-700 hover:bg-purple-100/60 rounded-xl transition cursor-pointer"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>

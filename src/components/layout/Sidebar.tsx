@@ -10,6 +10,7 @@ import {
   Layers,
   HeartHandshake,
   ShieldCheck,
+  ShieldAlert,
   GraduationCap,
   BarChart3,
   Settings,
@@ -22,6 +23,8 @@ import {
   Sparkles,
   MessageSquare,
   Bell,
+  Briefcase,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { ROLE_CONFIGS, UserRole } from "../../types";
@@ -113,16 +116,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           title: "Bursar Operations",
           items: [
             { id: "dashboard", label: "Finance Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+            { id: "expenses", label: "Expense Management", icon: <Receipt className="w-4 h-4" /> },
+            { id: "staff-management", label: "Staff & Salaries", icon: <Briefcase className="w-4 h-4" /> },
             { id: "fees", label: "Collect Student Fees", icon: <CreditCard className="w-4 h-4" /> },
             { id: "generate-monthly-fees", label: "Batch Invoicing", icon: <CalendarPlus className="w-4 h-4" /> },
             { id: "payment-approval", label: "Payment Approvals", icon: <CheckSquare className="w-4 h-4" /> },
             { id: "fee-categories", label: "Fee Structures", icon: <Layers className="w-4 h-4" /> },
+            { id: "csv-import", label: "CSV Datasets & Sync", icon: <FileSpreadsheet className="w-4 h-4" /> },
           ],
         },
         {
           title: "Audit & Account",
           items: [
             { id: "reports", label: "Reconciliation Reports", icon: <BarChart3 className="w-4 h-4" /> },
+            { id: "audit-logs", label: "Audit Ledger", icon: <ShieldAlert className="w-4 h-4" /> },
             { id: "profile", label: "My Profile", icon: <User className="w-4 h-4" /> },
           ],
         },
@@ -172,29 +179,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
     // Default: Super Admin / Principal
     return [
       {
-        title: "Core Operations",
+        title: "Finance & Operations",
         items: [
-          { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
-          { id: "students-list", label: "Students Directory", icon: <Users className="w-4 h-4" /> },
-          { id: "add-student", label: "Add Student", icon: <UserPlus className="w-4 h-4" /> },
-          { id: "student-details", label: "Student Profile", icon: <UserCheck className="w-4 h-4" /> },
+          { id: "dashboard", label: "Finance Analytics & Prediction", icon: <LayoutDashboard className="w-4 h-4" /> },
+          { id: "expenses", label: "Expense Management", icon: <Receipt className="w-4 h-4" /> },
+          { id: "staff-management", label: "Staff & Salary Management", icon: <Briefcase className="w-4 h-4" /> },
+          { id: "fees", label: "Fee Management", icon: <CreditCard className="w-4 h-4" /> },
+          { id: "csv-import", label: "CSV Datasets & Sync", icon: <FileSpreadsheet className="w-4 h-4" /> },
         ],
       },
       {
-        title: "Finance & Fee Management",
+        title: "Fee Billing & Accounts",
         items: [
-          { id: "expenses", label: "Finance & Expenses", icon: <Receipt className="w-4 h-4" /> },
-          { id: "fees", label: "Fee Management", icon: <CreditCard className="w-4 h-4" /> },
           { id: "generate-monthly-fees", label: "Generate Monthly Fees", icon: <CalendarPlus className="w-4 h-4" /> },
           { id: "payment-approval", label: "Payment Approvals", icon: <CheckSquare className="w-4 h-4" /> },
           { id: "fee-categories", label: "Fee Categories", icon: <Layers className="w-4 h-4" /> },
         ],
       },
       {
-        title: "Academic & People",
+        title: "Students & Academic",
         items: [
+          { id: "students-list", label: "Students Directory", icon: <Users className="w-4 h-4" /> },
+          { id: "add-student", label: "Add Student", icon: <UserPlus className="w-4 h-4" /> },
+          { id: "student-details", label: "Student Profile", icon: <UserCheck className="w-4 h-4" /> },
           { id: "parents", label: "Parents / Guardians", icon: <HeartHandshake className="w-4 h-4" /> },
-          { id: "users", label: "User Management", icon: <ShieldCheck className="w-4 h-4" /> },
           { id: "academic-info", label: "Academic Structure", icon: <GraduationCap className="w-4 h-4" /> },
         ],
       },
@@ -202,6 +210,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         title: "Analytics & System",
         items: [
           { id: "reports", label: "Reports & Analytics", icon: <BarChart3 className="w-4 h-4" /> },
+          { id: "users", label: "User Management", icon: <ShieldCheck className="w-4 h-4" /> },
+          { id: "audit-logs", label: "Security & Audit Logs", icon: <ShieldAlert className="w-4 h-4" /> },
           { id: "settings", label: "Admin Settings", icon: <Settings className="w-4 h-4" /> },
           { id: "profile", label: "My Profile", icon: <User className="w-4 h-4" /> },
         ],
@@ -273,7 +283,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {section.title}
               </p>
               {section.items.map((item) => {
-                const isActive = activeCurrentTab === item.id;
+                const isActive =
+                  activeCurrentTab === item.id ||
+                  (activeCurrentTab === "edit-student" && item.id === "students-list");
                 return (
                   <button
                     key={item.id}

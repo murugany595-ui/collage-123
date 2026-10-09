@@ -7,7 +7,11 @@ const PORT = 3000;
 
 // Firebase Backend Setup for Trusted Server-Side Authorization
 const { initializeApp: initFirebaseApp, getApps: getFirebaseApps } = require("firebase/app");
-const { getAuth: getServerAuth, signInWithEmailAndPassword: serverSignIn } = require("firebase/auth");
+const {
+  getAuth: getServerAuth,
+  signInWithEmailAndPassword: serverSignIn,
+  createUserWithEmailAndPassword: serverCreateUser,
+} = require("firebase/auth");
 const {
   initializeFirestore: initServerFirestore,
   doc,
@@ -17,10 +21,11 @@ const {
   getDocs,
 } = require("firebase/firestore");
 
+const appletConfig = require("./firebase-applet-config.json");
 const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY || "AIzaSyAJ1oda9FePj90ktJss6Zye_TbnE7BDVDI",
-  authDomain: "collage-28e7c.firebaseapp.com",
-  projectId: "collage-28e7c",
+  apiKey: appletConfig.apiKey || "AIzaSyAJ1oda9FePj90ktJss6Zye_TbnE7BDVDI",
+  authDomain: appletConfig.authDomain || "collage-28e7c.firebaseapp.com",
+  projectId: appletConfig.projectId || "collage-28e7c",
 };
 
 let serverApp;
@@ -33,7 +38,14 @@ if (foundBackend) {
   serverApp = initFirebaseApp(firebaseConfig, backendAppName);
 }
 const serverAuth = getServerAuth(serverApp);
-const serverDb = initServerFirestore(serverApp, { experimentalForceLongPolling: true });
+const serverDb =
+  appletConfig.firestoreDatabaseId && appletConfig.firestoreDatabaseId !== "(default)"
+    ? initServerFirestore(
+        serverApp,
+        { experimentalForceLongPolling: true },
+        appletConfig.firestoreDatabaseId
+      )
+    : initServerFirestore(serverApp, { experimentalForceLongPolling: true });
 
 // Optional: authenticate backend on startup if admin credentials are provided in env
 if (process.env.FIREBASE_ADMIN_EMAIL && process.env.FIREBASE_ADMIN_PASSWORD) {
@@ -398,6 +410,185 @@ async function startServer() {
     }
   });
 
+  // Student Authentication Provisioning Endpoint (Admin student registration hook)
+  app.post("/api/admin/create-student-auth", async (req, res) => {
+    try {
+      const { registerNumber, password, name, email } = req.body;
+      if (!registerNumber || !password) {
+        return res.status(400).json({ success: false, message: "Register Number and password are required" });
+      }
+
+      const cleanReg = String(registerNumber).trim().toUpperCase().replace(/\s+/g, "");
+      const cleanEmail = cleanReg.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const authEmail = `${cleanEmail}@student.college.edu`;
+
+      const tempAppName = `srv_stu_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const tempApp = initFirebaseApp(firebaseConfig, tempAppName);
+      const tempAuth = getServerAuth(tempApp);
+
+      try {
+        const userCred = await serverCreateUser(tempAuth, authEmail, password);
+        const uid = userCred.user.uid;
+        const { deleteApp } = require("firebase/app");
+        await deleteApp(tempApp).catch(() => {});
+        return res.json({ success: true, uid, authEmail, registerNumber: cleanReg });
+      } catch (authErr) {
+        const { deleteApp } = require("firebase/app");
+        await deleteApp(tempApp).catch(() => {});
+
+        if (
+          authErr.code === "auth/email-already-in-use" ||
+          authErr.message?.includes("email-already-in-use") ||
+          authErr.message?.includes("EMAIL_EXISTS")
+        ) {
+          return res.json({ success: true, authEmail, registerNumber: cleanReg, alreadyExists: true });
+        }
+        return res.status(400).json({ success: false, message: authErr.message, code: authErr.code });
+      }
+    } catch (err) {
+      console.error("[Server] /api/admin/create-student-auth error:", err);
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
+  // Student Login Verification Endpoint (Registration ID + Date of Birth)
+  app.post("/api/student/verify-login", async (req, res) => {
+    try {
+      const { registerId, dob } = req.body;
+      if (!registerId || !dob) {
+        return res.status(401).json({ success: false, message: "Invalid Registration ID or Date of Birth." });
+      }
+
+      const cleanReg = String(registerId).trim().toUpperCase().replace(/\s+/g, "");
+      const cleanDob = String(dob).trim();
+      const normInputDigits = cleanDob.replace(/[^0-9]/g, "");
+
+      const compareDobs = (storedRaw) => {
+        if (!storedRaw) return false;
+        const storedStr = String(storedRaw).trim();
+        if (storedStr === cleanDob) return true;
+        const storedDigits = storedStr.replace(/[^0-9]/g, "");
+        if (storedDigits && normInputDigits && storedDigits === normInputDigits) return true;
+        if (normInputDigits.length === 8 && storedDigits.length === 8) {
+          const dmyToYmd = normInputDigits.slice(4, 8) + normInputDigits.slice(2, 4) + normInputDigits.slice(0, 2);
+          if (dmyToYmd === storedDigits) return true;
+          const ymdToDmy = normInputDigits.slice(6, 8) + normInputDigits.slice(4, 6) + normInputDigits.slice(0, 4);
+          if (ymdToDmy === storedDigits) return true;
+        }
+        return false;
+      };
+
+      // 1. Direct student_auth registry lookup
+      try {
+        const snap = await getDoc(doc(serverDb, "student_auth", cleanReg));
+        if (snap.exists()) {
+          const data = snap.data();
+          const storedDob = data.dateOfBirth || data.dob || "";
+          if (compareDobs(storedDob)) {
+            return res.json({
+              success: true,
+              student: {
+                id: data.studentId || cleanReg,
+                studentId: data.studentId || cleanReg,
+                name: data.name || "Student",
+                registerNumber: cleanReg,
+                rollNo: cleanReg,
+                department: (data.department || "aids").toLowerCase(),
+                dateOfBirth: storedDob,
+                dob: storedDob,
+                year: data.year || "1st Year",
+                grade: data.grade || "B.Tech",
+                email: data.authEmail || `${cleanReg.toLowerCase()}@student.college.edu`,
+                phone: data.phone || "",
+                parentName: data.parentName || "",
+                parentEmail: data.parentEmail || "",
+                status: "active",
+              },
+            });
+          }
+        }
+      } catch (authErr) {
+        console.warn("[Server] student_auth lookup notice:", authErr.message);
+      }
+
+      // 2. Department subcollections lookup: departments/{dept}/students
+      const depts = ["aids", "cse", "ece", "mech", "it", "civil"];
+      for (const d of depts) {
+        try {
+          // Direct doc lookup
+          const directDoc = await getDoc(doc(serverDb, "departments", d, "students", cleanReg)).catch(() => null);
+          if (directDoc && directDoc.exists()) {
+            const data = directDoc.data();
+            const storedDob = data.dateOfBirth || data.dob || "";
+            if (compareDobs(storedDob)) {
+              return res.json({
+                success: true,
+                student: {
+                  id: directDoc.id,
+                  studentId: data.studentId || directDoc.id,
+                  department: d,
+                  ...data,
+                },
+              });
+            }
+          }
+
+          // Search collection for registerNumber / rollNo match
+          const collSnap = await getDocs(collection(serverDb, "departments", d, "students")).catch(() => null);
+          if (collSnap && !collSnap.empty) {
+            for (const docItem of collSnap.docs) {
+              const data = docItem.data();
+              const regMatch = String(data.registerNumber || data.rollNo || data.roll || "").trim().toUpperCase().replace(/\s+/g, "");
+              const cleanRegNoHyphen = cleanReg.replace(/-/g, "");
+              const matchRegNoHyphen = regMatch.replace(/-/g, "");
+              if (regMatch === cleanReg || matchRegNoHyphen === cleanRegNoHyphen || docItem.id.toUpperCase() === cleanReg) {
+                const storedDob = data.dateOfBirth || data.dob || "";
+                if (compareDobs(storedDob)) {
+                  return res.json({
+                    success: true,
+                    student: {
+                      id: docItem.id,
+                      studentId: data.studentId || docItem.id,
+                      department: d,
+                      ...data,
+                    },
+                  });
+                }
+              }
+            }
+          }
+        } catch {
+          // Continue searching other departments
+        }
+      }
+
+      // 3. Top-level students collection lookup
+      try {
+        const topDoc = await getDoc(doc(serverDb, "students", cleanReg)).catch(() => null);
+        if (topDoc && topDoc.exists()) {
+          const data = topDoc.data();
+          const storedDob = data.dateOfBirth || data.dob || "";
+          if (compareDobs(storedDob)) {
+            return res.json({
+              success: true,
+              student: {
+                id: topDoc.id,
+                studentId: data.student_id || data.studentId || topDoc.id,
+                department: data.department || "aids",
+                ...data,
+              },
+            });
+          }
+        }
+      } catch {}
+
+      return res.status(401).json({ success: false, message: "Invalid Registration ID or Date of Birth." });
+    } catch (err) {
+      console.error("[Server] /api/student/verify-login error:", err.message);
+      return res.status(401).json({ success: false, message: "Invalid Registration ID or Date of Birth." });
+    }
+  });
+
   // AI Chatbot endpoint powered by Gemini API
   app.post("/api/chat", async (req, res) => {
     try {
@@ -438,6 +629,12 @@ CURRENT AUTHENTICATED USER:
 - Role: ${role || "student"}
 - Department: ${user?.department || "General"}
 - Register/Student ID: ${user?.registerNumber || user?.rollNo || user?.id || "N/A"}
+
+INSTITUTIONAL DEPARTMENTS & ACADEMIC STRUCTURE:
+- AI&DS: Artificial Intelligence & Data Science (HOD: Dr. K. Senthil Kumar, hod.aids@ourcollege.edu)
+- CSE: Computer Science & Engineering (HOD: Dr. R. Meenakshi, hod.cse@ourcollege.edu)
+- ECE: Electronics & Communication Engineering (HOD: Dr. S. Karthikeyan, hod.ece@ourcollege.edu)
+- MECH: Mechanical Engineering (HOD: Dr. P. Rajendran, hod.mech@ourcollege.edu)
 
 REAL LIVE DATABASE CONTEXT FOR THIS USER:
 ${JSON.stringify(context || {}, null, 2)}

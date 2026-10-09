@@ -1,0 +1,136 @@
+expense_id,month,category,amount_inr,staff_id,staff_name,description
+EXP0001,2026-01,Staff Salary,85000,STAFF001,Dr. R.Mohan,Monthly staff salary
+EXP0002,2026-01,Staff Salary,62000,STAFF002,Ms. Priya Devi,Monthly staff salary
+EXP0003,2026-01,Staff Salary,90000,STAFF003,Mr. Karthikeyan,Monthly staff salary
+EXP0004,2026-01,Staff Salary,60000,STAFF004,Ms. Anitha,Monthly staff salary
+EXP0005,2026-01,Staff Salary,72000,STAFF005,Mr. Suresh,Monthly staff salary
+EXP0006,2026-01,Staff Salary,58000,STAFF006,Ms. Kavitha,Monthly staff salary
+EXP0007,2026-01,Staff Salary,57000,STAFF007,Mr. Prakash,Monthly staff salary
+EXP0008,2026-01,Staff Salary,61000,STAFF008,Ms. Divya,Monthly staff salary
+EXP0009,2026-01,Staff Salary,76000,STAFF009,Dr. Senthil,Monthly staff salary
+EXP0010,2026-01,Staff Salary,59000,STAFF010,Ms. Meena,Monthly staff salary
+EXP0011,2026-01,Electricity,92000,,,Monthly electricity expense
+EXP0012,2026-01,Water & Utilities,28000,,,Monthly water & utilities expense
+EXP0013,2026-01,Maintenance,45000,,,Monthly maintenance expense
+EXP0014,2026-01,Stationery,18000,,,Monthly stationery expense
+EXP0015,2026-01,Internet & IT,22000,,,Monthly internet & it expense
+EXP0016,2026-02,Staff Salary,85000,STAFF001,Dr. R.Mohan,Monthly staff salary
+EXP0017,2026-02,Staff Salary,62000,STAFF002,Ms. Priya Devi,Monthly staff salary
+EXP0018,2026-02,Staff Salary,90000,STAFF003,Mr. Karthikeyan,Monthly staff salary
+EXP0019,2026-02,Staff Salary,60000,STAFF004,Ms. Anitha,Monthly staff salary
+EXP0020,2026-02,Staff Salary,72000,STAFF005,Mr. Suresh,Monthly staff salary
+EXP0021,2026-02,Staff Salary,58000,STAFF006,Ms. Kavitha,Monthly staff salary
+EXP0022,2026-02,Staff Salary,57000,STAFF007,Mr. Prakash,Monthly staff salary
+EXP0023,2026-02,Staff Salary,61000,STAFF008,Ms. Divya,Monthly staff salary
+EXP0024,2026-02,Staff Salary,76000,STAFF009,Dr. Senthil,Monthly staff salary
+EXP0025,2026-02,Staff Salary,59000,STAFF010,Ms. Meena,Monthly staff salary
+EXP0026,2026-02,Electricity,88000,,,Monthly electricity expense
+EXP0027,2026-02,Water & Utilities,27000,,,Monthly water & utilities expense
+EXP0028,2026-02,Maintenance,38000,,,Monthly maintenance expense
+EXP0029,2026-02,Stationery,21000,,,Monthly stationery expense
+EXP0030,2026-02,Internet & IT,22000,,,Monthly internet & it expense
+EXP0031,2026-03,Staff Salary,85000,STAFF001,Dr. R.Mohan,Monthly staff salary
+EXP0032,2026-03,Staff Salary,62000,STAFF002,Ms. Priya Devi,Monthly staff salary
+EXP0033,2026-03,Staff Salary,90000,STAFF003,Mr. Karthikeyan,Monthly staff salary
+EXP0034,2026-03,Staff Salary,60000,STAFF004,Ms. Anitha,Monthly staff salary
+EXP0035,2026-03,Staff Salary,72000,STAFF005,Mr. Suresh,Monthly staff salary
+EXP0036,2026-03,Staff Salary,58000,STAFF006,Ms. Kavitha,Monthly staff salary
+EXP0037,2026-03,Staff Salary,57000,STAFF007,Mr. Prakash,Monthly staff salary
+EXP0038,2026-03,Staff Salary,61000,STAFF008,Ms. Divya,Monthly staff salary
+EXP0039,2026-03,Staff Salary,76000,STAFF009,Dr. Senthil,Monthly staff salary
+EXP0040,2026-03,Staff Salary,59000,STAFF010,Ms. Meena,Monthly staff salary
+EXP0041,2026-03,Electricity,96000,,,Monthly electricity expense
+EXP0042,2026-03,Water & Utilities,30000,,,Monthly water & utilities expense
+EXP0043,2026-03,Maintenance,52000,,,Monthly maintenance expense
+EXP0044,2026-03,Stationery,24000,,,Monthly stationery expense
+EXP0045,2026-03,Internet & IT,23000,,,Monthly internet & it expense
+EXP0046,2026-04,Staff Salary,85000,STAFF001,Dr. R.Mohan,Monthly staff salary
+EXP0047,2026-04,Staff Salary,62000,STAFF002,Ms. Priya Devi,Monthly staff salary
+EXP0048,2026-04,Staff Salary,90000,STAFF003,Mr. Karthikeyan,Monthly staff salary
+EXP0049,2026-04,Staff Salary,60000,STAFF004,Ms. Anitha,Monthly staff salary
+EXP0050,2026-04,Staff Salary,72000,STAFF005,Mr. Suresh,Monthly staff salary
+EXP0051,2026-04,Staff Salary,58000,STAFF006,Ms. Kavitha,Monthly staff salary
+EXP0052,2026-04,Staff Salary,57000,STAFF007,Mr. Prakash,Monthly staff salary
+EXP0053,2026-04,Staff Salary,61000,STAFF008,Ms. Divya,Monthly staff salary
+EXP0054,2026-04,Staff Salary,76000,STAFF009,Dr. Senthil,Monthly staff salary
+EXP0055,2026-04,Staff Salary,59000,STAFF010,Ms. Meena,Monthly staff salary
+EXP0056,2026-04,Electricity,101000,,,Monthly electricity expense
+EXP0057,2026-04,Water & Utilities,31000,,,Monthly water & utilities expense
+EXP0058,2026-04,Maintenance,47000,,,Monthly maintenance expense
+EXP0059,2026-04,Stationery,20000,,,Monthly stationery expense
+EXP0060,2026-04,Internet & IT,23000,,,Monthly internet & it expense
+EXP0061,2026-05,Staff Salary,85000,STAFF001,Dr. R.Mohan,Monthly staff salary
+EXP0062,2026-05,Staff Salary,62000,STAFF002,Ms. Priya Devi,Monthly staff salary
+EXP0063,2026-05,Staff Salary,90000,STAFF003,Mr. Karthikeyan,Monthly staff salary
+EXP0064,2026-05,Staff Salary,60000,STAFF004,Ms. Anitha,Monthly staff salary
+EXP0065,2026-05,Staff Salary,72000,STAFF005,Mr. Suresh,Monthly staff salary
+EXP0066,2026-05,Staff Salary,58000,STAFF006,Ms. Kavitha,Monthly staff salary
+EXP0067,2026-05,Staff Salary,57000,STAFF007,Mr. Prakash,Monthly staff salary
+EXP0068,2026-05,Staff Salary,61000,STAFF008,Ms. Divya,Monthly staff salary
+EXP0069,2026-05,Staff Salary,76000,STAFF009,Dr. Senthil,Monthly staff salary
+EXP0070,2026-05,Staff Salary,59000,STAFF010,Ms. Meena,Monthly staff salary
+EXP0071,2026-05,Electricity,108000,,,Monthly electricity expense
+EXP0072,2026-05,Water & Utilities,32000,,,Monthly water & utilities expense
+EXP0073,2026-05,Maintenance,58000,,,Monthly maintenance expense
+EXP0074,2026-05,Stationery,26000,,,Monthly stationery expense
+EXP0075,2026-05,Internet & IT,24000,,,Monthly internet & it expense
+EXP0076,2026-06,Staff Salary,85000,STAFF001,Dr. R.Mohan,Monthly staff salary
+EXP0077,2026-06,Staff Salary,62000,STAFF002,Ms. Priya Devi,Monthly staff salary
+EXP0078,2026-06,Staff Salary,90000,STAFF003,Mr. Karthikeyan,Monthly staff salary
+EXP0079,2026-06,Staff Salary,60000,STAFF004,Ms. Anitha,Monthly staff salary
+EXP0080,2026-06,Staff Salary,72000,STAFF005,Mr. Suresh,Monthly staff salary
+EXP0081,2026-06,Staff Salary,58000,STAFF006,Ms. Kavitha,Monthly staff salary
+EXP0082,2026-06,Staff Salary,57000,STAFF007,Mr. Prakash,Monthly staff salary
+EXP0083,2026-06,Staff Salary,61000,STAFF008,Ms. Divya,Monthly staff salary
+EXP0084,2026-06,Staff Salary,76000,STAFF009,Dr. Senthil,Monthly staff salary
+EXP0085,2026-06,Staff Salary,59000,STAFF010,Ms. Meena,Monthly staff salary
+EXP0086,2026-06,Electricity,112000,,,Monthly electricity expense
+EXP0087,2026-06,Water & Utilities,34000,,,Monthly water & utilities expense
+EXP0088,2026-06,Maintenance,49000,,,Monthly maintenance expense
+EXP0089,2026-06,Stationery,23000,,,Monthly stationery expense
+EXP0090,2026-06,Internet & IT,24000,,,Monthly internet & it expense
+EXP0091,2026-07,Staff Salary,85000,STAFF001,Dr. R.Mohan,Monthly staff salary
+EXP0092,2026-07,Staff Salary,62000,STAFF002,Ms. Priya Devi,Monthly staff salary
+EXP0093,2026-07,Staff Salary,90000,STAFF003,Mr. Karthikeyan,Monthly staff salary
+EXP0094,2026-07,Staff Salary,60000,STAFF004,Ms. Anitha,Monthly staff salary
+EXP0095,2026-07,Staff Salary,72000,STAFF005,Mr. Suresh,Monthly staff salary
+EXP0096,2026-07,Staff Salary,58000,STAFF006,Ms. Kavitha,Monthly staff salary
+EXP0097,2026-07,Staff Salary,57000,STAFF007,Mr. Prakash,Monthly staff salary
+EXP0098,2026-07,Staff Salary,61000,STAFF008,Ms. Divya,Monthly staff salary
+EXP0099,2026-07,Staff Salary,76000,STAFF009,Dr. Senthil,Monthly staff salary
+EXP0100,2026-07,Staff Salary,59000,STAFF010,Ms. Meena,Monthly staff salary
+EXP0101,2026-07,Electricity,118000,,,Monthly electricity expense
+EXP0102,2026-07,Water & Utilities,35000,,,Monthly water & utilities expense
+EXP0103,2026-07,Maintenance,61000,,,Monthly maintenance expense
+EXP0104,2026-07,Stationery,27000,,,Monthly stationery expense
+EXP0105,2026-07,Internet & IT,25000,,,Monthly internet & it expense
+EXP0106,2026-08,Staff Salary,85000,STAFF001,Dr. R.Mohan,Monthly staff salary
+EXP0107,2026-08,Staff Salary,62000,STAFF002,Ms. Priya Devi,Monthly staff salary
+EXP0108,2026-08,Staff Salary,90000,STAFF003,Mr. Karthikeyan,Monthly staff salary
+EXP0109,2026-08,Staff Salary,60000,STAFF004,Ms. Anitha,Monthly staff salary
+EXP0110,2026-08,Staff Salary,72000,STAFF005,Mr. Suresh,Monthly staff salary
+EXP0111,2026-08,Staff Salary,58000,STAFF006,Ms. Kavitha,Monthly staff salary
+EXP0112,2026-08,Staff Salary,57000,STAFF007,Mr. Prakash,Monthly staff salary
+EXP0113,2026-08,Staff Salary,61000,STAFF008,Ms. Divya,Monthly staff salary
+EXP0114,2026-08,Staff Salary,76000,STAFF009,Dr. Senthil,Monthly staff salary
+EXP0115,2026-08,Staff Salary,59000,STAFF010,Ms. Meena,Monthly staff salary
+EXP0116,2026-08,Electricity,109000,,,Monthly electricity expense
+EXP0117,2026-08,Water & Utilities,33000,,,Monthly water & utilities expense
+EXP0118,2026-08,Maintenance,54000,,,Monthly maintenance expense
+EXP0119,2026-08,Stationery,25000,,,Monthly stationery expense
+EXP0120,2026-08,Internet & IT,25000,,,Monthly internet & it expense
+EXP0121,2026-09,Staff Salary,85000,STAFF001,Dr. R.Mohan,Monthly staff salary
+EXP0122,2026-09,Staff Salary,62000,STAFF002,Ms. Priya Devi,Monthly staff salary
+EXP0123,2026-09,Staff Salary,90000,STAFF003,Mr. Karthikeyan,Monthly staff salary
+EXP0124,2026-09,Staff Salary,60000,STAFF004,Ms. Anitha,Monthly staff salary
+EXP0125,2026-09,Staff Salary,72000,STAFF005,Mr. Suresh,Monthly staff salary
+EXP0126,2026-09,Staff Salary,58000,STAFF006,Ms. Kavitha,Monthly staff salary
+EXP0127,2026-09,Staff Salary,57000,STAFF007,Mr. Prakash,Monthly staff salary
+EXP0128,2026-09,Staff Salary,61000,STAFF008,Ms. Divya,Monthly staff salary
+EXP0129,2026-09,Staff Salary,76000,STAFF009,Dr. Senthil,Monthly staff salary
+EXP0130,2026-09,Staff Salary,59000,STAFF010,Ms. Meena,Monthly staff salary
+EXP0131,2026-09,Electricity,116000,,,Monthly electricity expense
+EXP0132,2026-09,Water & Utilities,36000,,,Monthly water & utilities expense
+EXP0133,2026-09,Maintenance,59000,,,Monthly maintenance expense
+EXP0134,2026-09,Stationery,28000,,,Monthly stationery expense
+EXP0135,2026-09,Internet & IT,26000,,,Monthly internet & it expense

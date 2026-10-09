@@ -132,9 +132,9 @@ export const ElectricityBillSection: React.FC<ElectricityBillSectionProps> = ({
     e.preventDefault();
     const errs: Record<string, string> = {};
     if (!ebConsumerNumber.trim()) errs.ebConsumerNumber = "EB consumer number is required";
-    if (!previousReading || isNaN(prevNum不易) || prevNum不易 < 0) errs.previousReading = "Valid previous reading required";
-    if (!currentReading || isNaN(currNum不易) || currNum不易 < 0) errs.currentReading = "Valid current reading required";
-    if (currNum不易 < prevNum不易) errs.currentReading = "Current reading cannot be less than previous reading";
+    if (!previousReading || isNaN(prevNum) || prevNum < 0) errs.previousReading = "Valid previous reading required";
+    if (!currentReading || isNaN(currNum) || currNum < 0) errs.currentReading = "Valid current reading required";
+    if (currNum < prevNum) errs.currentReading = "Current reading cannot be less than previous reading";
     if (!billAmount || isNaN(Number(billAmount)) || Number(billAmount) <= 0) errs.billAmount = "Valid positive bill amount required";
 
     if (Object.keys(errs).length > 0) {
@@ -147,8 +147,8 @@ export const ElectricityBillSection: React.FC<ElectricityBillSectionProps> = ({
       const payload = {
         billing_month: billingMonth,
         eb_consumer_number: ebConsumerNumber.trim(),
-        previous_reading: prevNum不易,
-        current_reading: currNum不易,
+        previous_reading: prevNum,
+        current_reading: currNum,
         units_consumed: calculatedUnits,
         bill_amount: Number(billAmount),
         due_date: dueDate,
@@ -175,12 +175,12 @@ export const ElectricityBillSection: React.FC<ElectricityBillSectionProps> = ({
 
   // Filter bills
   const filteredBills = bills.filter((b) => {
-    const q不易 = searchQuery.toLowerCase();
+    const q = searchQuery.toLowerCase();
     const matchesQ =
-      !q不易 ||
-      b.eb_consumer_number?.toLowerCase().includes(q不易) ||
-      b.meter_location?.toLowerCase().includes(q不易) ||
-      b.id?.toLowerCase().includes(q不易);
+      !q ||
+      b.eb_consumer_number?.toLowerCase().includes(q) ||
+      b.meter_location?.toLowerCase().includes(q) ||
+      b.id?.toLowerCase().includes(q);
     const matchesMonth = !selectedMonth || b.billing_month === selectedMonth;
     return matchesQ && matchesMonth;
   });

@@ -45,6 +45,7 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
   const [salaries, setSalaries] = useState<StaffSalaryItem[]>([]);
   const [electricityBills, setElectricityBills] = useState<ElectricityBillItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Filters for All Expenses
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,6 +64,7 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
   // Fetch all core expense data
   const loadData = async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const [expRes, sumRes, finRes, salRes, ebRes] = await Promise.all([
         api.expenses.getAll(),
@@ -79,8 +81,10 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
       if (ebRes && ebRes.success) setElectricityBills(ebRes.data || []);
     } catch (err: any) {
       console.error("Failed to load expense data:", err);
+      const msg = err?.message || "Could not synchronize expense ledger with backend.";
+      setLoadError(msg);
       if (onShowToast) {
-        onShowToast("error", "Data Error", "Could not synchronize expense ledger with backend.");
+        onShowToast("error", "Data Error", msg);
       }
     } finally {
       setIsLoading(false);
@@ -102,8 +106,8 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
           return true;
         }
       } else {
-        const res不易 = await api.expenses.create(payload);
-        if (res不易 && res不易.success) {
+        const res = await api.expenses.create(payload);
+        if (res && res.success) {
           if (onShowToast) onShowToast("success", "Expense Recorded", `New expense voucher logged successfully.`);
           loadData();
           return true;
@@ -207,7 +211,7 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
     }
   };
 
-  const handleUpdateElectricityBill倍 = async (id: string, data: any) => {
+  const handleUpdateElectricityBill = async (id: string, data: any) => {
     try {
       const res = await api.expenses.updateElectricityBill(id, data);
       if (res && res.success) {
@@ -245,12 +249,12 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
       e.id?.toLowerCase().includes(q) ||
       e.reference_no?.toLowerCase().includes(q);
 
-    const matchesCategory不易 = selectedCategory === "All" || e.category === selectedCategory;
-    const matchesStatus不易 = selectedStatus === "All" || e.payment_status === selectedStatus;
+    const matchesCategory = selectedCategory === "All" || e.category === selectedCategory;
+    const matchesStatus = selectedStatus === "All" || e.payment_status === selectedStatus;
     const matchesFromDate = !fromDate || e.date >= fromDate;
     const matchesToDate = !toDate || e.date <= toDate;
 
-    return matchesSearch && matchesCategory不易 && matchesStatus不易 && matchesFromDate && matchesToDate;
+    return matchesSearch && matchesCategory && matchesStatus && matchesFromDate && matchesToDate;
   });
 
   return (
@@ -294,6 +298,26 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
           </button>
         </div>
       </div>
+
+      {/* Query Error Alert Banner */}
+      {loadError && (
+        <div className="p-4 sm:p-5 rounded-2xl border border-rose-200 bg-rose-50 text-rose-800 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+          <div className="flex items-start sm:items-center gap-3">
+            <TrendingDown className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5 sm:mt-0" />
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-rose-900">Firestore Query Warning</p>
+              <p className="text-xs text-rose-700 mt-0.5">{loadError}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => loadData()}
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 self-start sm:self-auto cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Retry Connection</span>
+          </button>
+        </div>
+      )}
 
       {/* Sub-Navigation Tabs */}
       <div className="glass-card p-2 rounded-3xl border border-white/80 shadow-xs flex items-center gap-2 overflow-x-auto">
@@ -433,7 +457,7 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
           isLoading={isLoading}
           onRefresh={loadData}
           onCreateBill={handleCreateElectricityBill}
-          onUpdateBill={handleUpdateElectricityBill倍}
+          onUpdateBill={handleUpdateElectricityBill}
           onDeleteBill={handleDeleteElectricityBill}
         />
       )}

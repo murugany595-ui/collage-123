@@ -7,8 +7,13 @@ import {
   GraduationCap,
   HeartHandshake,
   CreditCard,
+  Lock,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { api } from "../services/api";
+import { PasswordStrengthIndicator } from "../components/common/PasswordStrengthIndicator";
+import { normalizeRegisterNumber, normalizeDateString } from "../services/firebase/studentService";
 
 export interface AddStudentPageProps {
   onNavigate?: (tab: string) => void;
@@ -33,6 +38,8 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
   const [guardianPhone, setGuardianPhone] = useState(initialData?.guardianPhone || "");
   const [guardianEmail, setGuardianEmail] = useState(initialData?.guardianEmail || "");
   const [address, setAddress] = useState(initialData?.address || "");
+  const [studentPassword, setStudentPassword] = useState("");
+  const [showStudentPassword, setShowStudentPassword] = useState(false);
   const [parentPassword, setParentPassword] = useState("");
   const [transportRoute, setTransportRoute] = useState("None");
   const [hostel, setHostel] = useState("No");
@@ -47,8 +54,11 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
     setError(null);
 
     try {
-      const assignedRoll = roll || `REG-${Math.floor(1000 + Math.random() * 8999)}`;
-      const deptCode = grade.toLowerCase().includes("cse")
+      const assignedRoll = roll.trim() ? normalizeRegisterNumber(roll) : `REG-${Math.floor(1000 + Math.random() * 8999)}`;
+      const normDob = normalizeDateString(dob);
+      const deptCode = grade.toLowerCase().includes("ai") || grade.toLowerCase().includes("ds")
+        ? "aids"
+        : grade.toLowerCase().includes("cse")
         ? "cse"
         : grade.toLowerCase().includes("ece")
         ? "ece"
@@ -56,17 +66,23 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
         ? "mech"
         : "aids";
 
+      const finalStudentPassword =
+        studentPassword.trim() ||
+        (normDob ? normDob.replace(/[^0-9]/g, "") : `Stud@${assignedRoll.replace(/[^A-Za-z0-9]/g, "")}`);
+
       const studentPayload = {
-        name,
+        name: name.trim(),
         roll: assignedRoll,
         rollNo: assignedRoll,
         registerNumber: assignedRoll,
-        dateOfBirth: dob,
-        dob: dob,
+        dateOfBirth: normDob,
+        dob: normDob,
         grade,
         gender,
         bloodGroup,
         department: deptCode,
+        password: finalStudentPassword,
+        studentPassword: finalStudentPassword,
         guardian: guardian || "Guardian",
         parentName: guardian || "Guardian",
         parentPhone: guardianPhone,
@@ -84,11 +100,11 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
       const res = await api.admin.createStudent(studentPayload);
       if (res.success) {
         setSuccessMsg(
-          `Student record created! Register ID: ${assignedRoll}.${guardianEmail ? ` Parent account linked to ${guardianEmail}.` : ""}`
+          `Student account created! Login ID: ${assignedRoll} | Password: ${finalStudentPassword}. The student can log in to the Student Portal immediately.`
         );
         setTimeout(() => {
           onNavigate("students-list");
-        }, 1500);
+        }, 2200);
       } else {
         setError(res.message || "Failed to create student");
       }
@@ -228,7 +244,7 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
             <h3 className="font-bold text-slate-800 text-sm">Academic Enrollment</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Degree Program & Semester *</label>
               <select
@@ -236,6 +252,7 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
                 onChange={(e) => setGrade(e.target.value)}
                 className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 bg-white"
               >
+                <option value="B.Tech AI&DS">B.Tech Artificial Intelligence & Data Science - Sem 5</option>
                 <option value="B.Tech CSE">B.Tech Computer Science - Sem 5</option>
                 <option value="B.Tech ECE">B.Tech Electronics & Comm - Sem 3</option>
                 <option value="B.Tech MECH">B.Tech Mechanical - Sem 7</option>
@@ -245,14 +262,41 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Roll / College ID</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Roll / Register Number *
+              </label>
               <input
                 type="text"
-                placeholder="e.g. CSE-501"
+                placeholder="e.g. 21AD045 or REG1001"
                 value={roll}
                 onChange={(e) => setRoll(e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200"
+                className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 uppercase font-mono font-medium"
               />
+              <span className="text-[10px] text-slate-400">Used as the Student Login ID</span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Student Login Password *
+              </label>
+              <div className="relative">
+                <input
+                  type={showStudentPassword ? "text" : "password"}
+                  placeholder="Set password (min 6 chars)"
+                  value={studentPassword}
+                  onChange={(e) => setStudentPassword(e.target.value)}
+                  className="w-full pl-3 pr-9 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowStudentPassword(!showStudentPassword)}
+                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                >
+                  {showStudentPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              <span className="text-[10px] text-slate-400">Default: Stud@&lt;RegisterNumber&gt;</span>
+              <PasswordStrengthIndicator password={studentPassword} />
             </div>
 
             <div>
@@ -322,6 +366,7 @@ export const AddStudentPage: React.FC<AddStudentPageProps> = ({
                 className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 font-mono"
               />
               <span className="text-[10px] text-slate-400">Used by parent to login to Parent Dashboard</span>
+              <PasswordStrengthIndicator password={parentPassword} />
             </div>
 
             <div className="md:col-span-2">

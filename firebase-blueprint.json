@@ -267,6 +267,22 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "sender", "text", "createdAt"]
+    },
+    "StudentAuth": {
+      "title": "StudentAuth",
+      "description": "Student login authentication mappings linking register numbers to Firebase Auth credentials",
+      "type": "object",
+      "properties": {
+        "registerNumber": { "type": "string", "maxLength": 64 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "uid": { "type": "string", "maxLength": 128 },
+        "authEmail": { "type": "string", "maxLength": 120 },
+        "name": { "type": "string", "maxLength": 120 },
+        "department": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["registerNumber", "studentId", "authEmail"]
     }
   },
   "firestore": {
@@ -278,6 +294,10 @@
       "schema": "Accountancy",
       "description": "Bursar and accounting staff accounts created by Admin"
     },
+    "/student_auth/{registerId}": {
+      "schema": "StudentAuth",
+      "description": "Student login authentication mappings linking register numbers to Firebase Auth credentials"
+    },
     "/departments/{departmentId}": {
       "schema": "Department",
       "description": "Academic departments: AI&DS, CSE, ECE, MECH, etc."
@@ -286,6 +306,18 @@
       "schema": "Student",
       "description": "Department-isolated student records with unique register numbers"
     },
+    "/departments/{departmentId}/fees/{feeId}": {
+      "schema": "FeePayment",
+      "description": "Department-level fee invoices and payment transactions"
+    },
+    "/departments/{departmentId}/attendance/{attendanceId}": {
+      "schema": "Attendance",
+      "description": "Department-level student attendance daily records"
+    },
+    "/departments/{departmentId}/exams/{examId}": {
+      "schema": "ExamFeePayment",
+      "description": "Department-level examination fees and registrations"
+    },
     "/parents/{parentId}": {
       "schema": "Parent",
       "description": "Parent documents mapped directly to their linked student ID"
@@ -293,6 +325,10 @@
     "/expenses/{expenseId}": {
       "schema": "Expense",
       "description": "Discrete institutional expense records for audit and forecasting"
+    },
+    "/adminExpenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Central institutional administrative expenses including payroll and utility invoices"
     },
     "/feeSettings/{settingId}": {
       "schema": "FeeSettings",
