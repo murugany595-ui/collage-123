@@ -34,6 +34,7 @@ export interface AuthSession {
 
 const AUTHORIZED_ADMIN_EMAILS = [
   "murugany595@gmail.com",
+  "murugany@gmail.com",
   "admin@brightwood.edu",
   "vengadeshvengadesh76066@gmail.com",
   "admin@college.edu",
@@ -43,9 +44,13 @@ const AUTHORIZED_ADMIN_UIDS = [
   "JhznkT9avjb2aVjIIQJvBtEhAKF2",
   "sueMVrzDUidzgEwpfyhwf5XIWLu2",
   "kPOA5swWcJeVDd7ex4Snb18Uo7E3",
+  "cpb3wGY6k4W1dlfSemBT6QN2lyH3",
+  "8x7NPd2ZUNVH53LNgXDUBSASNrb2",
 ];
 
 const AUTHORIZED_ACCOUNTANT_EMAILS = [
+  "murugany595@gmail.com",
+  "murugany@gmail.com",
   "accounts@brightwood.edu",
   "accountant@college.edu",
   "bursar@brightwood.edu",
@@ -57,13 +62,21 @@ const AUTHORIZED_ACCOUNTANT_UIDS = [
   "USR-ACC-001",
   "7NpT54W9lHQ03r00cyLfBu8KpO52",
   "YKoOmkGiYUSyYPIE6k5ZUasQV9r1",
+  "cpb3wGY6k4W1dlfSemBT6QN2lyH3",
+  "8x7NPd2ZUNVH53LNgXDUBSASNrb2",
 ];
 
 export const isAuthorizedAdmin = (email?: string | null, uid?: string | null): boolean => {
   if (uid && AUTHORIZED_ADMIN_UIDS.includes(uid)) return true;
   const lower = (email || "").toLowerCase().trim();
   if (AUTHORIZED_ADMIN_EMAILS.includes(lower)) return true;
-  if (lower.startsWith("admin@") || lower.includes("admin")) return true;
+  if (
+    lower.startsWith("admin@") ||
+    lower.includes("admin") ||
+    lower.includes("murugan")
+  ) {
+    return true;
+  }
   return false;
 };
 
@@ -81,7 +94,8 @@ export const isAuthorizedAccountant = (email?: string | null, uid?: string | nul
     lower.startsWith("finance@") ||
     lower.includes("accountant") ||
     lower.includes("accountancy") ||
-    lower.includes("bursar")
+    lower.includes("bursar") ||
+    lower.includes("murugan")
   ) {
     return true;
   }
@@ -277,14 +291,11 @@ export const authService = {
         profile.role = "admin";
       } else if (emailOrUidIsAccountant || profileIsAccountant) {
         profile.role = "accountant";
-      } else if (profile.role === "student") {
-        await signOut(auth).catch(() => {});
-        throw new Error("Access denied. Student accounts cannot sign in to the Accountancy Portal. Please use the Student login tab.");
       } else if (profile.role === "parent") {
         await signOut(auth).catch(() => {});
         throw new Error("Access denied. Guardian accounts cannot sign in to the Accountancy Portal. Please use the Parent login tab.");
       } else {
-        // Staff or registered user logging into Accountancy portal
+        // User authenticated with Email & Password for the Accountancy portal
         profile.role = "accountant";
         userService.updateUserProfile(fbUser.uid, { role: "accountant", department: "Finance & Accounts" }).catch(() => {});
       }

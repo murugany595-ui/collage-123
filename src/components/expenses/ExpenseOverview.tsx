@@ -3,8 +3,6 @@ import {
   IndianRupee,
   TrendingDown,
   TrendingUp,
-  Users,
-  Zap,
   AlertCircle,
   AlertTriangle,
   CheckCircle2,
@@ -182,7 +180,28 @@ export const ExpenseOverview: React.FC<ExpenseOverviewProps> = ({
 
       {/* 2. Expense Category Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: This Month Outflow */}
+        {/* Card 1: Total Institutional Expenses */}
+        <div
+          onClick={() => onNavigateTab && onNavigateTab("expenses")}
+          className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-violet-400 transition-all cursor-pointer group"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider group-hover:text-violet-600 transition-colors">
+              Total Expenses
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center">
+              <IndianRupee className="w-5 h-5" />
+            </div>
+          </div>
+          <h3 className="text-2xl font-black text-slate-900 mt-2 tracking-tight">
+            ₹{totalExpenses.toLocaleString("en-IN")}
+          </h3>
+          <p className="text-xs text-violet-600 mt-1 font-medium group-hover:underline flex items-center gap-1">
+            View All Vouchers ({summary?.totalCount || (expenses || []).length || 0}) →
+          </p>
+        </div>
+
+        {/* Card 2: This Month Outflow */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">This Month Outflow</span>
@@ -194,50 +213,22 @@ export const ExpenseOverview: React.FC<ExpenseOverviewProps> = ({
             ₹{Number(summary?.thisMonthExpenses || 0).toLocaleString("en-IN")}
           </h3>
           <p className="text-xs text-slate-500 mt-1 flex items-center gap-1 font-medium">
-            <span className="text-blue-600 font-bold">{summary?.totalCount || 0}</span> total vouchers logged
+            Active monthly operating cycle
           </p>
         </div>
 
-        {/* Card 2: Staff Salary Outflow */}
-        <div
-          onClick={() => onNavigateTab && onNavigateTab("salaries")}
-          className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-blue-400 transition-all cursor-pointer group"
-        >
+        {/* Card 3: Settled & Paid Outflow */}
+        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider group-hover:text-blue-600 transition-colors">
-              Staff Salary Total
-            </span>
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <Users className="w-5 h-5" />
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Settled & Paid</span>
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <CheckCircle2 className="w-5 h-5" />
             </div>
           </div>
           <h3 className="text-2xl font-black text-slate-900 mt-2 tracking-tight">
-            ₹{Number(summary?.staffSalaryTotal || 0).toLocaleString("en-IN")}
+            ₹{Math.max(0, totalExpenses - Number(summary?.pendingExpenses || 0)).toLocaleString("en-IN")}
           </h3>
-          <p className="text-xs text-indigo-600 mt-1 font-medium group-hover:underline flex items-center gap-1">
-            Manage Payroll & Salaries →
-          </p>
-        </div>
-
-        {/* Card 3: Electricity Bill Outflow */}
-        <div
-          onClick={() => onNavigateTab && onNavigateTab("electricity")}
-          className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-amber-400 transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider group-hover:text-amber-600 transition-colors">
-              Electricity Bill Total
-            </span>
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-              <Zap className="w-5 h-5" />
-            </div>
-          </div>
-          <h3 className="text-2xl font-black text-slate-900 mt-2 tracking-tight">
-            ₹{Number(summary?.electricityTotal || 0).toLocaleString("en-IN")}
-          </h3>
-          <p className="text-xs text-amber-600 mt-1 font-medium group-hover:underline flex items-center gap-1">
-            Meter Units & EB Bills →
-          </p>
+          <p className="text-xs text-emerald-600 mt-1 font-medium">Disbursed & verified vouchers</p>
         </div>
 
         {/* Card 4: Pending Clearance */}

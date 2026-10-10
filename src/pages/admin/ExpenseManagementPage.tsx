@@ -3,8 +3,6 @@ import {
   IndianRupee,
   LayoutDashboard,
   FileText,
-  Users,
-  Zap,
   Calendar,
   Plus,
   RefreshCw,
@@ -18,15 +16,11 @@ import {
   ExpenseItem,
   ExpenseSummary,
   FinancialOverviewData,
-  StaffSalaryItem,
-  ElectricityBillItem,
 } from "../../types";
 import { ExpenseOverview } from "../../components/expenses/ExpenseOverview";
 import { ExpenseTable } from "../../components/expenses/ExpenseTable";
 import { AddExpenseModal } from "../../components/expenses/AddExpenseModal";
 import { ExpenseDetailsModal } from "../../components/expenses/ExpenseDetailsModal";
-import { StaffSalarySection } from "../../components/expenses/StaffSalarySection";
-import { ElectricityBillSection } from "../../components/expenses/ElectricityBillSection";
 import { MonthlyExpenseReportModal } from "../../components/expenses/MonthlyExpenseReportModal";
 import { ExpensePredictionSection } from "../../components/expenses/ExpensePredictionSection";
 import { Sparkles } from "lucide-react";
@@ -36,14 +30,12 @@ interface ExpenseManagementPageProps {
 }
 
 export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ onShowToast }) => {
-  const [activeSubTab, setActiveSubTab] = useState<"overview" | "prediction" | "expenses" | "salaries" | "electricity">("overview");
+  const [activeSubTab, setActiveSubTab] = useState<"overview" | "prediction" | "expenses">("overview");
 
   // Data States
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [summary, setSummary] = useState<ExpenseSummary | null>(null);
   const [financialOverview, setFinancialOverview] = useState<FinancialOverviewData | null>(null);
-  const [salaries, setSalaries] = useState<StaffSalaryItem[]>([]);
-  const [electricityBills, setElectricityBills] = useState<ElectricityBillItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -66,19 +58,15 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [expRes, sumRes, finRes, salRes, ebRes] = await Promise.all([
+      const [expRes, sumRes, finRes] = await Promise.all([
         api.expenses.getAll(),
         api.expenses.getSummary(),
         api.expenses.getFinancialOverview(),
-        api.expenses.getSalaries(),
-        api.expenses.getElectricityBills(),
       ]);
 
       if (expRes && expRes.success) setExpenses(expRes.data || []);
       if (sumRes && sumRes.success) setSummary(sumRes.data || null);
       if (finRes && finRes.success) setFinancialOverview(finRes.data || null);
-      if (salRes && salRes.success) setSalaries(salRes.data || []);
-      if (ebRes && ebRes.success) setElectricityBills(ebRes.data || []);
     } catch (err: any) {
       console.error("Failed to load expense data:", err);
       const msg = err?.message || "Could not synchronize expense ledger with backend.";
@@ -131,114 +119,6 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
     }
   };
 
-  // Salary Handlers
-  const handleCreateSalary = async (data: any) => {
-    try {
-      const res = await api.expenses.createSalary(data);
-      if (res && res.success) {
-        if (onShowToast) onShowToast("success", "Salary Processed", `Staff salary recorded and synced into Central Expenses.`);
-        loadData();
-        return true;
-      }
-    } catch (err: any) {
-      let displayMsg = err.message || "Failed to process salary.";
-      if (
-        displayMsg.includes("Missing or insufficient permissions") ||
-        displayMsg.includes("PERMISSION_DENIED")
-      ) {
-        displayMsg =
-          "Permission Denied: Only authorized Admin and Accountant accounts are permitted to process staff salaries.";
-      } else if (displayMsg.startsWith("{") && displayMsg.endsWith("}")) {
-        try {
-          const parsed = JSON.parse(displayMsg);
-          if (
-            parsed.error &&
-            (parsed.error.includes("Missing or insufficient permissions") ||
-              parsed.error.includes("PERMISSION_DENIED"))
-          ) {
-            displayMsg =
-              "Permission Denied: Only authorized Admin and Accountant accounts are permitted to process staff salaries.";
-          } else if (parsed.error) {
-            displayMsg = parsed.error;
-          }
-        } catch {}
-      }
-      if (onShowToast) onShowToast("error", "Salary Processing Failed", displayMsg);
-      throw new Error(displayMsg);
-    }
-  };
-
-  const handleUpdateSalary = async (id: string, data: any) => {
-    try {
-      const res = await api.expenses.updateSalary(id, data);
-      if (res && res.success) {
-        if (onShowToast) onShowToast("success", "Salary Updated", `Staff salary record updated successfully.`);
-        loadData();
-        return true;
-      }
-    } catch (err: any) {
-      if (onShowToast) onShowToast("error", "Salary Update Failed", err.message || "Failed to update salary.");
-      throw err;
-    }
-  };
-
-  const handleDeleteSalary = async (id: string) => {
-    try {
-      const res = await api.expenses.deleteSalary(id);
-      if (res && res.success) {
-        if (onShowToast) onShowToast("success", "Salary Deleted", `Staff salary record removed.`);
-        loadData();
-        return true;
-      }
-    } catch (err: any) {
-      if (onShowToast) onShowToast("error", "Salary Delete Failed", err.message || "Failed to remove salary record.");
-      throw err;
-    }
-  };
-
-  // Electricity Bill Handlers
-  const handleCreateElectricityBill = async (data: any) => {
-    try {
-      const res = await api.expenses.createElectricityBill(data);
-      if (res && res.success) {
-        if (onShowToast) onShowToast("success", "Bill Recorded", `Electricity bill saved and synced into Central Expenses.`);
-        loadData();
-        return true;
-      }
-    } catch (err: any) {
-      if (onShowToast) onShowToast("error", "Electricity Bill Failed", err.message || "Failed to save bill.");
-      throw err;
-    }
-  };
-
-  const handleUpdateElectricityBill = async (id: string, data: any) => {
-    try {
-      const res = await api.expenses.updateElectricityBill(id, data);
-      if (res && res.success) {
-        if (onShowToast) onShowToast("success", "Bill Updated", `Electricity bill record updated successfully.`);
-        loadData();
-        return true;
-      }
-    } catch (err: any) {
-      if (onShowToast) onShowToast("error", "Bill Update Failed", err.message || "Failed to update bill.");
-      throw err;
-    }
-  };
-
-  const handleDeleteElectricityBill = async (id: string) => {
-    try {
-      const res = await api.expenses.deleteElectricityBill(id);
-      if (res && res.success) {
-        if (onShowToast) onShowToast("success", "Bill Deleted", `Electricity bill record removed.`);
-        loadData();
-        return true;
-      }
-    } catch (err: any) {
-      if (onShowToast) onShowToast("error", "Bill Delete Failed", err.message || "Failed to delete bill.");
-      throw err;
-    }
-  };
-
   // Filtered Expenses List for the Table
   const safeExpenses = Array.isArray(expenses) ? expenses : [];
   const filteredExpenses = safeExpenses.filter((e) => {
@@ -273,7 +153,7 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
             Expense Management System
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Comprehensive audit, staff payroll, electricity utilities, and automated financial balance ledger.
+            Comprehensive audit, expense analytics, budget forecasting, and automated financial balance ledger.
           </p>
         </div>
 
@@ -357,30 +237,6 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
           <FileText className="w-4 h-4" />
           All Expenses Ledger ({(expenses || []).length})
         </button>
-
-        <button
-          onClick={() => setActiveSubTab("salaries")}
-          className={`py-2.5 px-4 text-xs font-bold rounded-2xl flex items-center gap-2 transition-all whitespace-nowrap ${
-            activeSubTab === "salaries"
-              ? "bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-md shadow-violet-500/20"
-              : "text-slate-600 hover:text-violet-700 hover:bg-violet-50/70"
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          Staff Salaries ({(salaries || []).length})
-        </button>
-
-        <button
-          onClick={() => setActiveSubTab("electricity")}
-          className={`py-2.5 px-4 text-xs font-bold rounded-2xl flex items-center gap-2 transition-all whitespace-nowrap ${
-            activeSubTab === "electricity"
-              ? "bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-md shadow-violet-500/20"
-              : "text-slate-600 hover:text-violet-700 hover:bg-violet-50/70"
-          }`}
-        >
-          <Zap className="w-4 h-4" />
-          Electricity Bills ({(electricityBills || []).length})
-        </button>
       </div>
 
       {/* Tab Contents */}
@@ -438,28 +294,6 @@ export const ExpenseManagementPage: React.FC<ExpenseManagementPageProps> = ({ on
           setFromDate={setFromDate}
           toDate={toDate}
           setToDate={setToDate}
-        />
-      )}
-
-      {activeSubTab === "salaries" && (
-        <StaffSalarySection
-          salaries={salaries}
-          isLoading={isLoading}
-          onRefresh={loadData}
-          onCreateSalary={handleCreateSalary}
-          onUpdateSalary={handleUpdateSalary}
-          onDeleteSalary={handleDeleteSalary}
-        />
-      )}
-
-      {activeSubTab === "electricity" && (
-        <ElectricityBillSection
-          bills={electricityBills}
-          isLoading={isLoading}
-          onRefresh={loadData}
-          onCreateBill={handleCreateElectricityBill}
-          onUpdateBill={handleUpdateElectricityBill}
-          onDeleteBill={handleDeleteElectricityBill}
         />
       )}
 

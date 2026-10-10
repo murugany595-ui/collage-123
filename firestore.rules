@@ -15,7 +15,11 @@ service cloud.firestore {
       return isSignedIn() && (
         request.auth.uid == 'JhznkT9avjb2aVjIIQJvBtEhAKF2' ||
         request.auth.uid == 'sueMVrzDUidzgEwpfyhwf5XIWLu2' ||
+        request.auth.uid == 'kPOA5swWcJeVDd7ex4Snb18Uo7E3' ||
+        request.auth.uid == 'cpb3wGY6k4W1dlfSemBT6QN2lyH3' ||
+        request.auth.uid == '8x7NPd2ZUNVH53LNgXDUBSASNrb2' ||
         request.auth.token.email == 'murugany595@gmail.com' ||
+        request.auth.token.email == 'murugany@gmail.com' ||
         request.auth.token.email == 'admin@brightwood.edu' ||
         request.auth.token.email == 'admin@college.edu' ||
         request.auth.token.email == 'vengadeshvengadesh76066@gmail.com' ||
@@ -25,6 +29,8 @@ service cloud.firestore {
 
     function isAccountant() {
       return isSignedIn() && (
+        request.auth.token.email == 'murugany595@gmail.com' ||
+        request.auth.token.email == 'murugany@gmail.com' ||
         request.auth.token.email == 'accounts@brightwood.edu' ||
         request.auth.token.email == 'accountant@college.edu' ||
         request.auth.token.role == 'accountant' ||

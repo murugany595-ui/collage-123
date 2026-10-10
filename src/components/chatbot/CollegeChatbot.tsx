@@ -7,14 +7,11 @@ import {
   Bot,
   User,
   RotateCcw,
-  Calendar,
   CreditCard,
-  Clock,
   ExternalLink,
   ChevronDown,
   ShieldCheck,
   AlertCircle,
-  CheckCircle2,
   RefreshCw,
   Loader2,
 } from "lucide-react";
@@ -428,31 +425,6 @@ How can I help you today?`;
                 <X className="w-4 h-4" />
               </button>
             </div>
-          </div>
-
-          {/* Quick Action Chips */}
-          <div className="px-3 py-2 bg-slate-50 border-b border-slate-200/70 flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
-            <button
-              onClick={() => setFeeExtensionOpen(true)}
-              className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 font-medium whitespace-nowrap flex items-center gap-1 transition"
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              Fee Extension
-            </button>
-            <button
-              onClick={() => setAttendanceCorrectionOpen(true)}
-              className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 font-medium whitespace-nowrap flex items-center gap-1 transition"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Attendance
-            </button>
-            <button
-              onClick={() => setViewRequestsOpen(true)}
-              className="px-2.5 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 font-medium whitespace-nowrap flex items-center gap-1 transition"
-            >
-              <Clock className="w-3.5 h-3.5" />
-              My Requests
-            </button>
           </div>
 
           {/* Messages Area */}
